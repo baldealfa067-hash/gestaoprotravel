@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedFuncionariosRouteImport } from './routes/_authenticated/funcionarios'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedBilhetesRouteImport } from './routes/_authenticated/bilhetes'
 
@@ -54,6 +55,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
@@ -71,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/bilhetes': typeof AuthenticatedBilhetesRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -81,6 +89,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/bilhetes': typeof AuthenticatedBilhetesRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -93,6 +102,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/bilhetes': typeof AuthenticatedBilhetesRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/bilhetes'
     | '/clientes'
+    | '/configuracoes'
     | '/dashboard'
     | '/funcionarios'
     | '/relatorios'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/bilhetes'
     | '/clientes'
+    | '/configuracoes'
     | '/dashboard'
     | '/funcionarios'
     | '/relatorios'
@@ -126,6 +138,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/bilhetes'
     | '/_authenticated/clientes'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/dashboard'
     | '/_authenticated/funcionarios'
     | '/_authenticated/relatorios'
@@ -189,6 +202,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/clientes': {
       id: '/_authenticated/clientes'
       path: '/clientes'
@@ -209,6 +229,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBilhetesRoute: typeof AuthenticatedBilhetesRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFuncionariosRoute: typeof AuthenticatedFuncionariosRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
@@ -217,6 +238,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBilhetesRoute: AuthenticatedBilhetesRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFuncionariosRoute: AuthenticatedFuncionariosRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
