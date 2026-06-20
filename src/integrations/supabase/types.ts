@@ -14,16 +14,201 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agency_settings: {
+        Row: {
+          agency_name: string
+          created_at: string
+          currency: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          agency_name?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_name?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bilhetes: {
+        Row: {
+          cliente_id: string
+          companhia: string
+          created_at: string
+          custo: number
+          data_viagem: string
+          destino: string
+          id: string
+          lucro: number | null
+          observacoes: string | null
+          origem: string
+          pnr: string | null
+          status: Database["public"]["Enums"]["ticket_status"]
+          updated_at: string
+          valor_cobrado: number
+          vendedor_id: string
+        }
+        Insert: {
+          cliente_id: string
+          companhia: string
+          created_at?: string
+          custo?: number
+          data_viagem: string
+          destino: string
+          id?: string
+          lucro?: number | null
+          observacoes?: string | null
+          origem: string
+          pnr?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          updated_at?: string
+          valor_cobrado?: number
+          vendedor_id: string
+        }
+        Update: {
+          cliente_id?: string
+          companhia?: string
+          created_at?: string
+          custo?: number
+          data_viagem?: string
+          destino?: string
+          id?: string
+          lucro?: number | null
+          observacoes?: string | null
+          origem?: string
+          pnr?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          updated_at?: string
+          valor_cobrado?: number
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bilhetes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clientes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string | null
+          full_name: string
+          id: string
+          nationality: string | null
+          passport_number: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          nationality?: string | null
+          passport_number?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          nationality?: string | null
+          passport_number?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          cargo: string | null
+          created_at: string
+          full_name: string
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          cargo?: string | null
+          created_at?: string
+          full_name?: string
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cargo?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "vendedor"
+      ticket_status:
+        | "pedido_criado"
+        | "pendente"
+        | "pago"
+        | "emitido"
+        | "cancelado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +335,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "vendedor"],
+      ticket_status: [
+        "pedido_criado",
+        "pendente",
+        "pago",
+        "emitido",
+        "cancelado",
+      ],
+    },
   },
 } as const
