@@ -10,9 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { useUserRole } from "@/hooks/use-auth";
+import { RequireAdmin } from "@/components/require-admin";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
-  component: ConfiguracoesPage,
+  component: () => (
+    <RequireAdmin>
+      <ConfiguracoesPage />
+    </RequireAdmin>
+  ),
 });
 
 const CURRENCIES = ["AOA", "USD", "EUR", "BRL", "ZAR", "MZN", "CVE", "GBP"];

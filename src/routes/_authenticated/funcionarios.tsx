@@ -33,7 +33,11 @@ import { createEmployee, deleteEmployee } from "@/lib/admin.functions";
 import { useUserRole } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/funcionarios")({
-  component: FuncionariosPage,
+  component: () => (
+    <RequireAdmin>
+      <FuncionariosPage />
+    </RequireAdmin>
+  ),
 });
 
 const schema = z.object({
