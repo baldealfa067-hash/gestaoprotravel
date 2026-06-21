@@ -31,6 +31,7 @@ import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { createEmployee, deleteEmployee } from "@/lib/admin.functions";
 import { useUserRole } from "@/hooks/use-auth";
+import { RequireAdmin } from "@/components/require-admin";
 
 export const Route = createFileRoute("/_authenticated/funcionarios")({
   component: () => (
