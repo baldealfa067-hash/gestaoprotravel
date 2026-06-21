@@ -62,7 +62,7 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) {
-      toast.error("Credenciais inválidas");
+      toast.error(error.message || "Credenciais inválidas");
       return;
     }
     toast.success("Sessão iniciada");
