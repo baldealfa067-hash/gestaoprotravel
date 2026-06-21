@@ -35,9 +35,11 @@ function RelatoriosPage() {
     queryFn: async () => {
       const { data: bilhetes } = await supabase
         .from("bilhetes")
-        .select("*, cliente:clientes(full_name), vendedor:profiles!bilhetes_vendedor_id_fkey(full_name)");
+        .select("*, cliente:clientes(full_name)");
       const { data: profiles } = await supabase.from("profiles").select("id, full_name");
-      return { bilhetes: bilhetes ?? [], profiles: profiles ?? [] };
+      const map = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p.full_name]));
+      const enriched = (bilhetes ?? []).map((b: any) => ({ ...b, vendedor: { full_name: map[b.vendedor_id] ?? null } }));
+      return { bilhetes: enriched, profiles: profiles ?? [] };
     },
   });
 
