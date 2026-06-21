@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/configuracoes")({
   ),
 });
 
-const CURRENCIES = ["AOA", "USD", "EUR", "BRL", "ZAR", "MZN", "CVE", "GBP"];
+const CURRENCIES = ["AOA", "XOF", "USD", "EUR", "BRL", "ZAR", "MZN", "CVE", "GBP"];
 
 function ConfiguracoesPage() {
   const qc = useQueryClient();

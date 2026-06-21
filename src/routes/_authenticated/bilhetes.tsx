@@ -86,10 +86,19 @@ function BilhetesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bilhetes")
-        .select("*, cliente:clientes(full_name), vendedor:profiles!bilhetes_vendedor_id_fkey(full_name)")
+        .select("*, cliente:clientes(full_name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      const vendedorIds = Array.from(new Set((data ?? []).map((b: any) => b.vendedor_id).filter(Boolean)));
+      let vendedorMap: Record<string, string> = {};
+      if (vendedorIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", vendedorIds);
+        vendedorMap = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p.full_name]));
+      }
+      return (data ?? []).map((b: any) => ({ ...b, vendedor: { full_name: vendedorMap[b.vendedor_id] ?? null } }));
     },
   });
 
