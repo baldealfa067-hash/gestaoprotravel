@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RequireAdmin } from "@/components/require-admin";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,11 @@ import { format, startOfMonth, startOfDay, subDays } from "date-fns";
 import { pt } from "date-fns/locale";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  component: Dashboard,
+  component: () => (
+    <RequireAdmin>
+      <Dashboard />
+    </RequireAdmin>
+  ),
 });
 
 function Dashboard() {

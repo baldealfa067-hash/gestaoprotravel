@@ -22,8 +22,9 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/use-auth";
 
-const items = [
+const adminItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Bilhetes", url: "/bilhetes", icon: Ticket },
@@ -32,9 +33,16 @@ const items = [
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 
+const vendedorItems = [
+  { title: "Bilhetes", url: "/bilhetes", icon: Ticket },
+  { title: "Clientes", url: "/clientes", icon: Users },
+];
+
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
+  const items = isAdmin ? adminItems : vendedorItems;
 
   const signOut = async () => {
     await supabase.auth.signOut();

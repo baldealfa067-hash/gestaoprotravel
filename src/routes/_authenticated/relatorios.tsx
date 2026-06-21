@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RequireAdmin } from "@/components/require-admin";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,11 @@ import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { startOfMonth, format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
-  component: RelatoriosPage,
+  component: () => (
+    <RequireAdmin>
+      <RelatoriosPage />
+    </RequireAdmin>
+  ),
 });
 
 function RelatoriosPage() {
