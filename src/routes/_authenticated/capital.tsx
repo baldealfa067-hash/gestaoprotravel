@@ -445,7 +445,8 @@ function CapitalPage() {
                                 } else {
                                   toast.success("Conta eliminada");
                                 }
-                                qc.invalidateQueries({ queryKey: ["capital"] });
+                                qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+                                qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
