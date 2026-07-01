@@ -1073,11 +1073,12 @@ function AporteDialog({ contas }: { contas: any[] }) {
   const capitalId = useMemo(() => (contas.find((c: any) => c.sistema)?.id ?? ""), [contas]);
   const [form, setForm] = useState({ conta_destino_id: "", valor: "", descricao: "" });
 
-  useMemo(() => {
+  useEffect(() => {
     if (open && !form.conta_destino_id && capitalId) {
       setForm((f) => ({ ...f, conta_destino_id: capitalId }));
     }
   }, [open, capitalId]);
+
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1156,11 +1157,12 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
   const capitalId = useMemo(() => (contas.find((c: any) => c.sistema)?.id ?? ""), [contas]);
   const [form, setForm] = useState({ conta_origem_id: "", companhia_id: "", valor: "", descricao: "" });
 
-  useMemo(() => {
+  useEffect(() => {
     if (open && !form.conta_origem_id && capitalId) {
       setForm((f) => ({ ...f, conta_origem_id: capitalId }));
     }
   }, [open, capitalId]);
+
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1074,7 +1074,7 @@ function NovaReservaDoBilheteDialog({
   const open = !!bilhete;
 
   // reset ao abrir
-  useMemo(() => {
+  useEffect(() => {
     if (bilhete) {
       setPnr(bilhete.pnr ?? "");
       const d = new Date(Date.now() + 48 * 36e5);
@@ -1085,6 +1085,7 @@ function NovaReservaDoBilheteDialog({
       );
     }
   }, [bilhete]);
+
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
