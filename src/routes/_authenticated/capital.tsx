@@ -45,6 +45,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ArrowLeftRight,
+  Trash2,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
