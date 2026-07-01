@@ -511,7 +511,20 @@ function ReservasPage() {
                         {ALERT_LABEL[lvl]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs font-semibold">{r.pnr}</TableCell>
+                    <TableCell className="font-mono text-xs font-semibold">
+                      <div className="flex items-center gap-1.5">
+                        <span>{r.pnr}</span>
+                        {r.bilhete_id && (
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1 text-[10px] bg-primary/10 text-primary border-primary/30"
+                          >
+                            bilhete
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span>{r.cliente?.full_name ?? "—"}</span>

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RequireAdmin } from "@/components/require-admin";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,7 +95,9 @@ function CapitalPage() {
       const { data, error } = await (supabase as any)
         .from("contas_financeiras")
         .select("*")
+        .order("sistema", { ascending: false })
         .order("nome");
+
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -334,6 +336,28 @@ function CapitalPage() {
 
         {/* Contas / Capital circulante */}
         <TabsContent value="contas" className="space-y-4">
+          {(() => {
+            const capital = (contas.data ?? []).find((c: any) => c.sistema);
+            if (!capital) return null;
+            return (
+              <Card className="border-primary/40 bg-primary/5">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                    <Wallet className="h-4 w-4" /> Capital Circulante
+                  </div>
+                  <div className="text-3xl font-bold mt-2 tabular-nums text-primary">
+                    {formatCurrency(capital.saldo_inicial, currency)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 max-w-xl">
+                    Este é o dinheiro fixo que financia as companhias. <b>Diminui</b> quando
+                    carrega uma companhia e <b>volta a subir</b> quando o cliente paga o bilhete
+                    (o custo regressa aqui e só a taxa da agência vai para o Fundo de Lucro).
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div>
@@ -370,8 +394,20 @@ function CapitalPage() {
                     </TableRow>
                   ) : (
                     (contas.data ?? []).map((k: any) => (
-                      <TableRow key={k.id}>
-                        <TableCell className="font-medium">{k.nome}</TableCell>
+                      <TableRow key={k.id} className={k.sistema ? "bg-primary/5" : ""}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {k.nome}
+                            {k.sistema && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-primary/10 text-primary border-primary/30"
+                              >
+                                Sistema
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{k.tipo === "caixa" ? "Caixa" : "Banco"}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {formatCurrency(k.saldo_inicial, currency)}
@@ -387,6 +423,8 @@ function CapitalPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+
 
 
         {/* 2. Receita */}
@@ -1032,7 +1070,15 @@ function AporteDialog({ contas }: { contas: any[] }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const capitalId = useMemo(() => (contas.find((c: any) => c.sistema)?.id ?? ""), [contas]);
   const [form, setForm] = useState({ conta_destino_id: "", valor: "", descricao: "" });
+
+  useEffect(() => {
+    if (open && !form.conta_destino_id && capitalId) {
+      setForm((f) => ({ ...f, conta_destino_id: capitalId }));
+    }
+  }, [open, capitalId]);
+
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1045,16 +1091,16 @@ function AporteDialog({ contas }: { contas: any[] }) {
       tipo: "aporte_capital",
       valor,
       conta_destino_id: form.conta_destino_id,
-      descricao: form.descricao.trim() || "Aporte de capital",
-      user_id: user?.id,
+      observacao: form.descricao.trim() || "Aporte de capital",
+      responsavel_id: user?.id,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Aporte registado");
     qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
-    qc.invalidateQueries({ queryKey: ["movimentacoes_capital"] });
+    qc.invalidateQueries({ queryKey: ["movimentacoes"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
-    setForm({ conta_destino_id: "", valor: "", descricao: "" });
+    setForm({ conta_destino_id: capitalId, valor: "", descricao: "" });
     setOpen(false);
   };
 
@@ -1068,7 +1114,7 @@ function AporteDialog({ contas }: { contas: any[] }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Aporte de capital</DialogTitle>
-          <p className="text-sm text-muted-foreground">Entrada de dinheiro na conta (capital circulante).</p>
+          <p className="text-sm text-muted-foreground">Entrada de dinheiro no capital circulante.</p>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
@@ -1078,7 +1124,9 @@ function AporteDialog({ contas }: { contas: any[] }) {
               <SelectContent>
                 {contas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
+                    {c.sistema ? "★ " : ""}
                     {c.nome} ({c.tipo === "caixa" ? "Caixa" : "Banco"})
+                    {c.sistema ? " — Capital Circulante" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1106,7 +1154,15 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const capitalId = useMemo(() => (contas.find((c: any) => c.sistema)?.id ?? ""), [contas]);
   const [form, setForm] = useState({ conta_origem_id: "", companhia_id: "", valor: "", descricao: "" });
+
+  useEffect(() => {
+    if (open && !form.conta_origem_id && capitalId) {
+      setForm((f) => ({ ...f, conta_origem_id: capitalId }));
+    }
+  }, [open, capitalId]);
+
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1125,19 +1181,20 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
       valor,
       conta_origem_id: form.conta_origem_id,
       companhia_id: form.companhia_id,
-      descricao: form.descricao.trim() || "Carregamento de companhia",
-      user_id: user?.id,
+      observacao: form.descricao.trim() || "Carregamento de companhia",
+      responsavel_id: user?.id,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Companhia carregada");
     qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
     qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
-    qc.invalidateQueries({ queryKey: ["movimentacoes_capital"] });
+    qc.invalidateQueries({ queryKey: ["movimentacoes"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
-    setForm({ conta_origem_id: "", companhia_id: "", valor: "", descricao: "" });
+    setForm({ conta_origem_id: capitalId, companhia_id: "", valor: "", descricao: "" });
     setOpen(false);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -1159,9 +1216,12 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
               <SelectContent>
                 {contas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
+                    {c.sistema ? "★ " : ""}
                     {c.nome} — saldo {Number(c.saldo_inicial).toLocaleString()}
+                    {c.sistema ? " (Capital Circulante)" : ""}
                   </SelectItem>
                 ))}
+
               </SelectContent>
             </Select>
           </div>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,8 +53,11 @@ import {
   Plane,
   Users,
   CheckCircle2,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
+
+
 import {
   formatCurrency,
   formatDate,
@@ -198,13 +201,36 @@ function BilhetesPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("contas_financeiras")
-        .select("id, nome, tipo, saldo_inicial, ativa")
+        .select("id, nome, tipo, saldo_inicial, ativa, sistema")
         .eq("ativa", true)
+        .order("sistema", { ascending: false })
         .order("nome");
       if (error) throw error;
       return (data ?? []) as any[];
     },
   });
+
+  const capitalCirculante = useMemo(
+    () => (contas as any[]).find((c) => c.sistema) ?? null,
+    [contas],
+  );
+
+  // reservas ligadas a bilhetes (para badge "tem reserva")
+  const { data: reservasBilhetes = new Set<string>() } = useQuery({
+    queryKey: ["reservas-por-bilhete"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("reservas")
+        .select("bilhete_id")
+        .not("bilhete_id", "is", null);
+      if (error) throw error;
+      return new Set((data ?? []).map((r: any) => r.bilhete_id));
+    },
+  });
+
+  // estado do diálogo "criar reserva a partir do bilhete"
+  const [reservaTarget, setReservaTarget] = useState<any | null>(null);
+
 
   // bilhetes já emitidos (para não emitir 2x)
   const { data: emitidosIds = new Set<string>() } = useQuery({
@@ -765,7 +791,20 @@ function BilhetesPage() {
                     </TableCell>
                     <TableCell>{b.companhia}</TableCell>
                     <TableCell>{formatDate(b.data_viagem)}</TableCell>
-                    <TableCell className="font-mono text-xs">{b.pnr ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span>{b.pnr ?? "—"}</span>
+                        {reservasBilhetes.has(b.id) && (
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1 text-[10px] bg-primary/10 text-primary border-primary/30"
+                          >
+                            reserva
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(b.custo, currency)}
                     </TableCell>
@@ -806,12 +845,18 @@ function BilhetesPage() {
                             <DropdownMenuItem
                               onClick={() => {
                                 setPayTarget(b);
-                                setPayContaId("");
+                                setPayContaId(capitalCirculante?.id ?? "");
                               }}
                             >
                               <Wallet className="h-4 w-4 mr-2" /> Registar pagamento
                             </DropdownMenuItem>
                           )}
+                          {!cancelado && !reservasBilhetes.has(b.id) && (
+                            <DropdownMenuItem onClick={() => setReservaTarget(b)}>
+                              <CalendarClock className="h-4 w-4 mr-2" /> Criar reserva
+                            </DropdownMenuItem>
+                          )}
+
                           <DropdownMenuItem
                             onClick={() => {
                               setEditingId(b.id);
@@ -936,20 +981,39 @@ function BilhetesPage() {
             <div className="space-y-3 text-sm">
               <Row label="Cliente" value={payTarget.cliente?.full_name ?? "—"} />
               <Row label="Valor a receber" value={formatCurrency(payTarget.valor_cobrado, currency)} />
+              <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Custo → Capital Circulante</span>
+                  <span className="tabular-nums font-medium">
+                    {formatCurrency(payTarget.custo, currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Taxa → Fundo de Lucro</span>
+                  <span className="tabular-nums font-medium text-success">
+                    {formatCurrency(payTarget.taxa_agencia, currency)}
+                  </span>
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label>Conta destino *</Label>
+                <Label>Conta que recebe o custo *</Label>
                 <Select value={payContaId} onValueChange={setPayContaId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Escolher conta que recebe o dinheiro" />
+                    <SelectValue placeholder="Escolher conta" />
                   </SelectTrigger>
                   <SelectContent>
                     {contas.map((c: any) => (
                       <SelectItem key={c.id} value={c.id}>
+                        {c.sistema ? "★ " : ""}
                         {c.tipo === "caixa" ? "Caixa" : "Banco"} — {c.nome}
+                        {c.sistema ? " (Capital Circulante)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  A taxa da agência vai automaticamente para o Fundo de Lucro.
+                </p>
                 {contas.length === 0 && (
                   <p className="text-xs text-warning">
                     Nenhuma conta cadastrada. Adicione uma conta em Capital.
@@ -958,6 +1022,7 @@ function BilhetesPage() {
               </div>
             </div>
           )}
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -979,9 +1044,128 @@ function BilhetesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NovaReservaDoBilheteDialog
+        bilhete={reservaTarget}
+        onClose={() => setReservaTarget(null)}
+        onSaved={() => {
+          setReservaTarget(null);
+          qc.invalidateQueries({ queryKey: ["reservas-por-bilhete"] });
+          qc.invalidateQueries({ queryKey: ["reservas"] });
+        }}
+      />
     </div>
   );
 }
+
+function NovaReservaDoBilheteDialog({
+  bilhete,
+  onClose,
+  onSaved,
+}: {
+  bilhete: any | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [pnr, setPnr] = useState("");
+  const [dataLimite, setDataLimite] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const open = !!bilhete;
+
+  // reset ao abrir
+  useEffect(() => {
+    if (bilhete) {
+      setPnr(bilhete.pnr ?? "");
+      const d = new Date(Date.now() + 48 * 36e5);
+      d.setSeconds(0, 0);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setDataLimite(
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      );
+    }
+  }, [bilhete]);
+
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bilhete) return;
+    if (!pnr.trim()) return toast.error("PNR obrigatório");
+    if (!dataLimite) return toast.error("Prazo limite obrigatório");
+    setSaving(true);
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("reservas").insert({
+      cliente_id: bilhete.cliente_id,
+      bilhete_id: bilhete.id,
+      pnr: pnr.trim().toUpperCase(),
+      companhia: bilhete.companhia,
+      origem: bilhete.origem,
+      destino: bilhete.destino,
+      classe: bilhete.classe ?? "economica",
+      continente_origem: bilhete.continente_origem ?? null,
+      continente_destino: bilhete.continente_destino ?? null,
+      data_viagem: bilhete.data_viagem,
+      data_limite: new Date(dataLimite).toISOString(),
+      status: "ativa",
+      observacoes: bilhete.observacoes ?? null,
+      user_id: u.user!.id,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Reserva criada");
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Criar reserva a partir do bilhete</DialogTitle>
+          <DialogDescription>
+            Herda cliente, rota, companhia e data. Falta preencher PNR e prazo limite.
+          </DialogDescription>
+        </DialogHeader>
+        {bilhete && (
+          <form onSubmit={submit} className="space-y-3 text-sm">
+            <Row label="Cliente" value={bilhete.cliente?.full_name ?? "—"} />
+            <Row label="Rota" value={`${bilhete.origem} → ${bilhete.destino}`} />
+            <Row label="Companhia" value={bilhete.companhia} />
+            <div className="space-y-1">
+              <Label>PNR *</Label>
+              <Input
+                className="font-mono uppercase"
+                value={pnr}
+                onChange={(e) => setPnr(e.target.value)}
+                placeholder="Ex: ABC123"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-destructive font-semibold">Prazo limite *</Label>
+              <Input
+                type="datetime-local"
+                value={dataLimite}
+                onChange={(e) => setDataLimite(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Prazo padrão sugerido: 48h a partir de agora.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "A criar..." : "Criar reserva"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function Row({ label, value }: { label: string; value: string }) {
   return (

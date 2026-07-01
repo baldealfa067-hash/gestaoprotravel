@@ -207,6 +207,7 @@ export type Database = {
           id: string
           nome: string
           saldo_inicial: number
+          sistema: boolean
           tipo: Database["public"]["Enums"]["conta_tipo"]
           updated_at: string
         }
@@ -216,6 +217,7 @@ export type Database = {
           id?: string
           nome: string
           saldo_inicial?: number
+          sistema?: boolean
           tipo: Database["public"]["Enums"]["conta_tipo"]
           updated_at?: string
         }
@@ -225,6 +227,7 @@ export type Database = {
           id?: string
           nome?: string
           saldo_inicial?: number
+          sistema?: boolean
           tipo?: Database["public"]["Enums"]["conta_tipo"]
           updated_at?: string
         }
@@ -358,6 +361,7 @@ export type Database = {
       }
       reservas: {
         Row: {
+          bilhete_id: string | null
           classe: string
           cliente_contactado: boolean
           cliente_id: string
@@ -377,6 +381,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bilhete_id?: string | null
           classe?: string
           cliente_contactado?: boolean
           cliente_id: string
@@ -396,6 +401,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bilhete_id?: string | null
           classe?: string
           cliente_contactado?: boolean
           cliente_id?: string
@@ -415,6 +421,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reservas_bilhete_id_fkey"
+            columns: ["bilhete_id"]
+            isOneToOne: false
+            referencedRelation: "bilhetes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reservas_cliente_id_fkey"
             columns: ["cliente_id"]
