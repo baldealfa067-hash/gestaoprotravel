@@ -40,8 +40,12 @@ export type Database = {
       }
       bilhetes: {
         Row: {
+          classe: Database["public"]["Enums"]["bilhete_classe"]
           cliente_id: string
           companhia: string
+          companhia_id: string | null
+          continente_destino: Database["public"]["Enums"]["continente"] | null
+          continente_origem: Database["public"]["Enums"]["continente"] | null
           created_at: string
           custo: number
           data_viagem: string
@@ -50,15 +54,21 @@ export type Database = {
           lucro: number | null
           observacoes: string | null
           origem: string
+          pago: boolean
           pnr: string | null
           status: Database["public"]["Enums"]["ticket_status"]
+          taxa_agencia: number
           updated_at: string
           valor_cobrado: number
           vendedor_id: string
         }
         Insert: {
+          classe?: Database["public"]["Enums"]["bilhete_classe"]
           cliente_id: string
           companhia: string
+          companhia_id?: string | null
+          continente_destino?: Database["public"]["Enums"]["continente"] | null
+          continente_origem?: Database["public"]["Enums"]["continente"] | null
           created_at?: string
           custo?: number
           data_viagem: string
@@ -67,15 +77,21 @@ export type Database = {
           lucro?: number | null
           observacoes?: string | null
           origem: string
+          pago?: boolean
           pnr?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
+          taxa_agencia?: number
           updated_at?: string
           valor_cobrado?: number
           vendedor_id: string
         }
         Update: {
+          classe?: Database["public"]["Enums"]["bilhete_classe"]
           cliente_id?: string
           companhia?: string
+          companhia_id?: string | null
+          continente_destino?: Database["public"]["Enums"]["continente"] | null
+          continente_origem?: Database["public"]["Enums"]["continente"] | null
           created_at?: string
           custo?: number
           data_viagem?: string
@@ -84,8 +100,10 @@ export type Database = {
           lucro?: number | null
           observacoes?: string | null
           origem?: string
+          pago?: boolean
           pnr?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
+          taxa_agencia?: number
           updated_at?: string
           valor_cobrado?: number
           vendedor_id?: string
@@ -96,6 +114,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bilhetes_companhia_id_fkey"
+            columns: ["companhia_id"]
+            isOneToOne: false
+            referencedRelation: "companhias_aereas"
             referencedColumns: ["id"]
           },
         ]
@@ -135,6 +160,174 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      companhias_aereas: {
+        Row: {
+          alerta_minimo: number
+          ativa: boolean
+          codigo: string | null
+          created_at: string
+          id: string
+          nome: string
+          saldo: number
+          ultimo_carregamento: string | null
+          ultimo_consumo: string | null
+          updated_at: string
+        }
+        Insert: {
+          alerta_minimo?: number
+          ativa?: boolean
+          codigo?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          saldo?: number
+          ultimo_carregamento?: string | null
+          ultimo_consumo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alerta_minimo?: number
+          ativa?: boolean
+          codigo?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          saldo?: number
+          ultimo_carregamento?: string | null
+          ultimo_consumo?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contas_financeiras: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          id: string
+          nome: string
+          saldo_inicial: number
+          tipo: Database["public"]["Enums"]["conta_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          saldo_inicial?: number
+          tipo: Database["public"]["Enums"]["conta_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          saldo_inicial?: number
+          tipo?: Database["public"]["Enums"]["conta_tipo"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fundo_lucro: {
+        Row: {
+          id: string
+          saldo: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          saldo?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          saldo?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      movimentacoes_capital: {
+        Row: {
+          bilhete_id: string | null
+          cliente_id: string | null
+          companhia_id: string | null
+          conta_destino_id: string | null
+          conta_origem_id: string | null
+          created_at: string
+          id: string
+          observacao: string | null
+          referencia: string | null
+          responsavel_id: string | null
+          tipo: Database["public"]["Enums"]["mov_tipo"]
+          valor: number
+        }
+        Insert: {
+          bilhete_id?: string | null
+          cliente_id?: string | null
+          companhia_id?: string | null
+          conta_destino_id?: string | null
+          conta_origem_id?: string | null
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          referencia?: string | null
+          responsavel_id?: string | null
+          tipo: Database["public"]["Enums"]["mov_tipo"]
+          valor: number
+        }
+        Update: {
+          bilhete_id?: string | null
+          cliente_id?: string | null
+          companhia_id?: string | null
+          conta_destino_id?: string | null
+          conta_origem_id?: string | null
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          referencia?: string | null
+          responsavel_id?: string | null
+          tipo?: Database["public"]["Enums"]["mov_tipo"]
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_capital_bilhete_id_fkey"
+            columns: ["bilhete_id"]
+            isOneToOne: false
+            referencedRelation: "bilhetes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_capital_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_capital_companhia_id_fkey"
+            columns: ["companhia_id"]
+            isOneToOne: false
+            referencedRelation: "companhias_aereas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_capital_conta_destino_id_fkey"
+            columns: ["conta_destino_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_capital_conta_origem_id_fkey"
+            columns: ["conta_origem_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -257,6 +450,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calcular_taxa_agencia: {
+        Args: {
+          _classe: Database["public"]["Enums"]["bilhete_classe"]
+          _custo: number
+          _destino: Database["public"]["Enums"]["continente"]
+          _origem: Database["public"]["Enums"]["continente"]
+        }
+        Returns: number
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -268,9 +470,32 @@ export type Database = {
         }
         Returns: boolean
       }
+      verificar_consistencia_capital: {
+        Args: never
+        Returns: {
+          capital_companhias: number
+          capital_contas: number
+          capital_dividas: number
+          capital_total: number
+          consistente: boolean
+          diferenca: number
+          fundo_lucro: number
+          taxa_acumulada: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "vendedor"
+      bilhete_classe: "economica" | "executiva"
+      conta_tipo: "caixa" | "banco"
+      continente: "africa" | "europa" | "america" | "asia" | "oceania"
+      mov_tipo:
+        | "carregamento_companhia"
+        | "emissao_bilhete"
+        | "pagamento_cliente"
+        | "transferencia_lucro"
+        | "despesa_operacional"
+        | "transferencia_interna"
       ticket_status:
         | "pedido_criado"
         | "pendente"
@@ -405,6 +630,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "vendedor"],
+      bilhete_classe: ["economica", "executiva"],
+      conta_tipo: ["caixa", "banco"],
+      continente: ["africa", "europa", "america", "asia", "oceania"],
+      mov_tipo: [
+        "carregamento_companhia",
+        "emissao_bilhete",
+        "pagamento_cliente",
+        "transferencia_lucro",
+        "despesa_operacional",
+        "transferencia_interna",
+      ],
       ticket_status: [
         "pedido_criado",
         "pendente",
