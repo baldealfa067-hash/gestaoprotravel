@@ -201,13 +201,36 @@ function BilhetesPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("contas_financeiras")
-        .select("id, nome, tipo, saldo_inicial, ativa")
+        .select("id, nome, tipo, saldo_inicial, ativa, sistema")
         .eq("ativa", true)
+        .order("sistema", { ascending: false })
         .order("nome");
       if (error) throw error;
       return (data ?? []) as any[];
     },
   });
+
+  const capitalCirculante = useMemo(
+    () => (contas as any[]).find((c) => c.sistema) ?? null,
+    [contas],
+  );
+
+  // reservas ligadas a bilhetes (para badge "tem reserva")
+  const { data: reservasBilhetes = new Set<string>() } = useQuery({
+    queryKey: ["reservas-por-bilhete"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("reservas")
+        .select("bilhete_id")
+        .not("bilhete_id", "is", null);
+      if (error) throw error;
+      return new Set((data ?? []).map((r: any) => r.bilhete_id));
+    },
+  });
+
+  // estado do diálogo "criar reserva a partir do bilhete"
+  const [reservaTarget, setReservaTarget] = useState<any | null>(null);
+
 
   // bilhetes já emitidos (para não emitir 2x)
   const { data: emitidosIds = new Set<string>() } = useQuery({
