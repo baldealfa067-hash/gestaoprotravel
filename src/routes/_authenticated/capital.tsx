@@ -334,6 +334,28 @@ function CapitalPage() {
 
         {/* Contas / Capital circulante */}
         <TabsContent value="contas" className="space-y-4">
+          {(() => {
+            const capital = (contas.data ?? []).find((c: any) => c.sistema);
+            if (!capital) return null;
+            return (
+              <Card className="border-primary/40 bg-primary/5">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                    <Wallet className="h-4 w-4" /> Capital Circulante
+                  </div>
+                  <div className="text-3xl font-bold mt-2 tabular-nums text-primary">
+                    {formatCurrency(capital.saldo_inicial, currency)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 max-w-xl">
+                    Este é o dinheiro fixo que financia as companhias. <b>Diminui</b> quando
+                    carrega uma companhia e <b>volta a subir</b> quando o cliente paga o bilhete
+                    (o custo regressa aqui e só a taxa da agência vai para o Fundo de Lucro).
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div>
@@ -370,8 +392,20 @@ function CapitalPage() {
                     </TableRow>
                   ) : (
                     (contas.data ?? []).map((k: any) => (
-                      <TableRow key={k.id}>
-                        <TableCell className="font-medium">{k.nome}</TableCell>
+                      <TableRow key={k.id} className={k.sistema ? "bg-primary/5" : ""}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {k.nome}
+                            {k.sistema && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-primary/10 text-primary border-primary/30"
+                              >
+                                Sistema
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{k.tipo === "caixa" ? "Caixa" : "Banco"}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {formatCurrency(k.saldo_inicial, currency)}
@@ -387,6 +421,8 @@ function CapitalPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+
 
 
         {/* 2. Receita */}
