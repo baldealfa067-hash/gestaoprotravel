@@ -11,6 +11,7 @@ export const CONTINENTE_LABEL: Record<string, string> = Object.fromEntries(
 );
 
 export const MOV_TIPO_LABEL: Record<string, string> = {
+  aporte_capital: "Aporte de capital",
   carregamento_companhia: "Carregamento de companhia",
   emissao_bilhete: "Emissão de bilhete",
   pagamento_cliente: "Pagamento de cliente",
