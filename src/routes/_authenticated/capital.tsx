@@ -70,6 +70,7 @@ export const Route = createFileRoute("/_authenticated/capital")({
 function CapitalPage() {
   const { data: settings } = useAgencySettings();
   const currency = settings?.currency ?? "AOA";
+  const qc = useQueryClient();
 
   const consistencia = useQuery({
     queryKey: ["capital-consistencia"],
