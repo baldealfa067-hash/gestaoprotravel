@@ -325,6 +325,9 @@ function BilhetesPage() {
       qc.invalidateQueries({ queryKey: ["companhias-options"] });
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
       qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["reservas"] });
+      qc.invalidateQueries({ queryKey: ["reservas-por-bilhete"] });
+      qc.invalidateQueries({ queryKey: ["reservas-expiring"] });
       setEmitTarget(null);
     },
     onError: (e: Error) => toast.error(e.message),
