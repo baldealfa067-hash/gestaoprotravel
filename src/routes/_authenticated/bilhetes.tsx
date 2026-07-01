@@ -981,20 +981,39 @@ function BilhetesPage() {
             <div className="space-y-3 text-sm">
               <Row label="Cliente" value={payTarget.cliente?.full_name ?? "—"} />
               <Row label="Valor a receber" value={formatCurrency(payTarget.valor_cobrado, currency)} />
+              <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Custo → Capital Circulante</span>
+                  <span className="tabular-nums font-medium">
+                    {formatCurrency(payTarget.custo, currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Taxa → Fundo de Lucro</span>
+                  <span className="tabular-nums font-medium text-success">
+                    {formatCurrency(payTarget.taxa_agencia, currency)}
+                  </span>
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label>Conta destino *</Label>
+                <Label>Conta que recebe o custo *</Label>
                 <Select value={payContaId} onValueChange={setPayContaId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Escolher conta que recebe o dinheiro" />
+                    <SelectValue placeholder="Escolher conta" />
                   </SelectTrigger>
                   <SelectContent>
                     {contas.map((c: any) => (
                       <SelectItem key={c.id} value={c.id}>
+                        {c.sistema ? "★ " : ""}
                         {c.tipo === "caixa" ? "Caixa" : "Banco"} — {c.nome}
+                        {c.sistema ? " (Capital Circulante)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  A taxa da agência vai automaticamente para o Fundo de Lucro.
+                </p>
                 {contas.length === 0 && (
                   <p className="text-xs text-warning">
                     Nenhuma conta cadastrada. Adicione uma conta em Capital.
@@ -1003,6 +1022,7 @@ function BilhetesPage() {
               </div>
             </div>
           )}
+
           <DialogFooter>
             <Button
               variant="outline"
