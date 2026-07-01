@@ -95,7 +95,9 @@ function CapitalPage() {
       const { data, error } = await (supabase as any)
         .from("contas_financeiras")
         .select("*")
+        .order("sistema", { ascending: false })
         .order("nome");
+
       if (error) throw error;
       return (data ?? []) as any[];
     },
