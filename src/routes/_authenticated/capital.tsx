@@ -964,3 +964,232 @@ function NovaCompanhiaDialog() {
     </Dialog>
   );
 }
+
+function NovaContaDialog() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ nome: "", tipo: "banco", saldo_inicial: "0" });
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nome.trim()) return toast.error("Informe o nome");
+    setSaving(true);
+    const { error } = await (supabase as any).from("contas_financeiras").insert({
+      nome: form.nome.trim(),
+      tipo: form.tipo,
+      saldo_inicial: Number(form.saldo_inicial) || 0,
+      ativa: true,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Conta criada");
+    qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+    qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+    setForm({ nome: "", tipo: "banco", saldo_inicial: "0" });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline"><Plus className="h-4 w-4" /> Nova conta</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Nova conta (Caixa/Banco)</DialogTitle></DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1">
+            <Label>Nome *</Label>
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="BAI Principal, Caixa Escritório..." autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Tipo</Label>
+              <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="banco">Banco</SelectItem>
+                  <SelectItem value="caixa">Caixa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Saldo inicial</Label>
+              <Input type="number" step="0.01" value={form.saldo_inicial} onChange={(e) => setForm({ ...form, saldo_inicial: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? "A guardar..." : "Criar conta"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AporteDialog({ contas }: { contas: any[] }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ conta_destino_id: "", valor: "", descricao: "" });
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.conta_destino_id) return toast.error("Escolha a conta destino");
+    const valor = Number(form.valor);
+    if (!valor || valor <= 0) return toast.error("Valor inválido");
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("movimentacoes_capital").insert({
+      tipo: "aporte_capital",
+      valor,
+      conta_destino_id: form.conta_destino_id,
+      descricao: form.descricao.trim() || "Aporte de capital",
+      user_id: user?.id,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Aporte registado");
+    qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+    qc.invalidateQueries({ queryKey: ["movimentacoes_capital"] });
+    qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+    setForm({ conta_destino_id: "", valor: "", descricao: "" });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground">
+          <ArrowDownLeft className="h-4 w-4" /> Aporte de capital
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Aporte de capital</DialogTitle>
+          <p className="text-sm text-muted-foreground">Entrada de dinheiro na conta (capital circulante).</p>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1">
+            <Label>Conta destino *</Label>
+            <Select value={form.conta_destino_id} onValueChange={(v) => setForm({ ...form, conta_destino_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Selecionar Caixa/Banco" /></SelectTrigger>
+              <SelectContent>
+                {contas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome} ({c.tipo === "caixa" ? "Caixa" : "Banco"})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Valor *</Label>
+            <Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} autoFocus />
+          </div>
+          <div className="space-y-1">
+            <Label>Descrição</Label>
+            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Depósito inicial, reforço mensal..." />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? "A registar..." : "Registar aporte"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; companhias: any[] }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ conta_origem_id: "", companhia_id: "", valor: "", descricao: "" });
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.conta_origem_id) return toast.error("Escolha a conta origem");
+    if (!form.companhia_id) return toast.error("Escolha a companhia");
+    const valor = Number(form.valor);
+    if (!valor || valor <= 0) return toast.error("Valor inválido");
+    const conta = contas.find((c) => c.id === form.conta_origem_id);
+    if (conta && Number(conta.saldo_inicial) < valor) {
+      return toast.error("Saldo insuficiente na conta origem");
+    }
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("movimentacoes_capital").insert({
+      tipo: "carregamento_companhia",
+      valor,
+      conta_origem_id: form.conta_origem_id,
+      companhia_id: form.companhia_id,
+      descricao: form.descricao.trim() || "Carregamento de companhia",
+      user_id: user?.id,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Companhia carregada");
+    qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+    qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
+    qc.invalidateQueries({ queryKey: ["movimentacoes_capital"] });
+    qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+    setForm({ conta_origem_id: "", companhia_id: "", valor: "", descricao: "" });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="secondary">
+          <ArrowLeftRight className="h-4 w-4" /> Carregar companhia
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Carregar companhia aérea</DialogTitle>
+          <p className="text-sm text-muted-foreground">Transfere capital da conta para o saldo pré-pago da companhia.</p>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1">
+            <Label>Conta origem *</Label>
+            <Select value={form.conta_origem_id} onValueChange={(v) => setForm({ ...form, conta_origem_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Caixa/Banco" /></SelectTrigger>
+              <SelectContent>
+                {contas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome} — saldo {Number(c.saldo_inicial).toLocaleString()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Companhia *</Label>
+            <Select value={form.companhia_id} onValueChange={(v) => setForm({ ...form, companhia_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Companhia" /></SelectTrigger>
+              <SelectContent>
+                {companhias.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Valor *</Label>
+            <Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <Label>Descrição</Label>
+            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? "A carregar..." : "Carregar"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
