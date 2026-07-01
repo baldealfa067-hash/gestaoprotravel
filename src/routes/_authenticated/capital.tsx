@@ -1,12 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RequireAdmin } from "@/components/require-admin";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -655,11 +666,16 @@ function CapitalPage() {
         {/* 7. Companhias */}
         <TabsContent value="companhias">
           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-base">Companhias aéreas</CardTitle>
+              <NovaCompanhiaDialog />
+            </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Companhia</TableHead>
+                    <TableHead>Código</TableHead>
                     <TableHead className="text-right">Saldo</TableHead>
                     <TableHead>Último carregamento</TableHead>
                     <TableHead>Último consumo</TableHead>
@@ -669,9 +685,8 @@ function CapitalPage() {
                 <TableBody>
                   {(companhias.data ?? []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        Nenhuma companhia registada. Adicione companhias para começar a rastrear
-                        saldos pré-pagos.
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        Nenhuma companhia registada. Clique em "Nova companhia" para começar.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -682,6 +697,9 @@ function CapitalPage() {
                       return (
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.nome}</TableCell>
+                          <TableCell className="text-xs uppercase text-muted-foreground">
+                            {c.codigo ?? "—"}
+                          </TableCell>
                           <TableCell
                             className={`text-right tabular-nums ${
                               baixo ? "text-destructive font-semibold" : ""
@@ -782,5 +800,109 @@ function BreakdownCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function NovaCompanhiaDialog() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    nome: "",
+    codigo: "",
+    saldo: "0",
+    alerta_minimo: "0",
+  });
+
+  const reset = () =>
+    setForm({ nome: "", codigo: "", saldo: "0", alerta_minimo: "0" });
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nome.trim()) {
+      toast.error("Informe o nome da companhia");
+      return;
+    }
+    setSaving(true);
+    const { error } = await (supabase as any).from("companhias_aereas").insert({
+      nome: form.nome.trim(),
+      codigo: form.codigo.trim() || null,
+      saldo: Number(form.saldo) || 0,
+      alerta_minimo: Number(form.alerta_minimo) || 0,
+      ativa: true,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Companhia criada");
+    qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
+    qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+    reset();
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm">
+          <Plus className="h-4 w-4" /> Nova companhia
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nova companhia aérea</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1">
+            <Label>Nome *</Label>
+            <Input
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              placeholder="TAAG, TAP, Air France..."
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Código IATA</Label>
+            <Input
+              value={form.codigo}
+              onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
+              placeholder="DT, TP, AF"
+              maxLength={4}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Saldo inicial</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.saldo}
+                onChange={(e) => setForm({ ...form, saldo: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Alerta mínimo</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.alerta_minimo}
+                onChange={(e) => setForm({ ...form, alerta_minimo: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "A guardar..." : "Criar companhia"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
