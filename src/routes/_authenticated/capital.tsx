@@ -666,11 +666,16 @@ function CapitalPage() {
         {/* 7. Companhias */}
         <TabsContent value="companhias">
           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-base">Companhias aéreas</CardTitle>
+              <NovaCompanhiaDialog />
+            </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Companhia</TableHead>
+                    <TableHead>Código</TableHead>
                     <TableHead className="text-right">Saldo</TableHead>
                     <TableHead>Último carregamento</TableHead>
                     <TableHead>Último consumo</TableHead>
@@ -680,9 +685,8 @@ function CapitalPage() {
                 <TableBody>
                   {(companhias.data ?? []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        Nenhuma companhia registada. Adicione companhias para começar a rastrear
-                        saldos pré-pagos.
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        Nenhuma companhia registada. Clique em "Nova companhia" para começar.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -693,6 +697,9 @@ function CapitalPage() {
                       return (
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.nome}</TableCell>
+                          <TableCell className="text-xs uppercase text-muted-foreground">
+                            {c.codigo ?? "—"}
+                          </TableCell>
                           <TableCell
                             className={`text-right tabular-nums ${
                               baixo ? "text-destructive font-semibold" : ""
