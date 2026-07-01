@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ticket, TrendingUp, Wallet, Clock, CheckCircle2, Award, CalendarDays } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { ReservasExpiringCard } from "@/components/reservas-expiring-card";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import {
   ResponsiveContainer,
@@ -117,6 +118,8 @@ function Dashboard() {
           </Card>
         ))}
       </div>
+
+      <ReservasExpiringCard />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
