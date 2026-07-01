@@ -1070,7 +1070,14 @@ function AporteDialog({ contas }: { contas: any[] }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const capitalId = useMemo(() => (contas.find((c: any) => c.sistema)?.id ?? ""), [contas]);
   const [form, setForm] = useState({ conta_destino_id: "", valor: "", descricao: "" });
+
+  useMemo(() => {
+    if (open && !form.conta_destino_id && capitalId) {
+      setForm((f) => ({ ...f, conta_destino_id: capitalId }));
+    }
+  }, [open, capitalId]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1083,16 +1090,16 @@ function AporteDialog({ contas }: { contas: any[] }) {
       tipo: "aporte_capital",
       valor,
       conta_destino_id: form.conta_destino_id,
-      descricao: form.descricao.trim() || "Aporte de capital",
-      user_id: user?.id,
+      observacao: form.descricao.trim() || "Aporte de capital",
+      responsavel_id: user?.id,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Aporte registado");
     qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
-    qc.invalidateQueries({ queryKey: ["movimentacoes_capital"] });
+    qc.invalidateQueries({ queryKey: ["movimentacoes"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
-    setForm({ conta_destino_id: "", valor: "", descricao: "" });
+    setForm({ conta_destino_id: capitalId, valor: "", descricao: "" });
     setOpen(false);
   };
 
@@ -1106,7 +1113,7 @@ function AporteDialog({ contas }: { contas: any[] }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Aporte de capital</DialogTitle>
-          <p className="text-sm text-muted-foreground">Entrada de dinheiro na conta (capital circulante).</p>
+          <p className="text-sm text-muted-foreground">Entrada de dinheiro no capital circulante.</p>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
@@ -1116,7 +1123,9 @@ function AporteDialog({ contas }: { contas: any[] }) {
               <SelectContent>
                 {contas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
+                    {c.sistema ? "★ " : ""}
                     {c.nome} ({c.tipo === "caixa" ? "Caixa" : "Banco"})
+                    {c.sistema ? " — Capital Circulante" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1144,7 +1153,14 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const capitalId = useMemo(() => (contas.find((c: any) => c.sistema)?.id ?? ""), [contas]);
   const [form, setForm] = useState({ conta_origem_id: "", companhia_id: "", valor: "", descricao: "" });
+
+  useMemo(() => {
+    if (open && !form.conta_origem_id && capitalId) {
+      setForm((f) => ({ ...f, conta_origem_id: capitalId }));
+    }
+  }, [open, capitalId]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1163,19 +1179,20 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
       valor,
       conta_origem_id: form.conta_origem_id,
       companhia_id: form.companhia_id,
-      descricao: form.descricao.trim() || "Carregamento de companhia",
-      user_id: user?.id,
+      observacao: form.descricao.trim() || "Carregamento de companhia",
+      responsavel_id: user?.id,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Companhia carregada");
     qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
     qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
-    qc.invalidateQueries({ queryKey: ["movimentacoes_capital"] });
+    qc.invalidateQueries({ queryKey: ["movimentacoes"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
-    setForm({ conta_origem_id: "", companhia_id: "", valor: "", descricao: "" });
+    setForm({ conta_origem_id: capitalId, companhia_id: "", valor: "", descricao: "" });
     setOpen(false);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
