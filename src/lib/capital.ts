@@ -11,6 +11,7 @@ export const CONTINENTE_LABEL: Record<string, string> = Object.fromEntries(
 );
 
 export const MOV_TIPO_LABEL: Record<string, string> = {
+  aporte_capital: "Aporte de capital",
   carregamento_companhia: "Carregamento de companhia",
   emissao_bilhete: "Emissão de bilhete",
   pagamento_cliente: "Pagamento de cliente",
@@ -24,7 +25,7 @@ export const MOV_TIPO_OPTIONS = Object.keys(MOV_TIPO_LABEL);
 export type MovDirection = "in" | "out" | "transfer" | "alert";
 
 export function movDirection(tipo: string): MovDirection {
-  if (tipo === "pagamento_cliente") return "in";
+  if (tipo === "pagamento_cliente" || tipo === "aporte_capital") return "in";
   if (tipo === "emissao_bilhete" || tipo === "despesa_operacional") return "out";
   if (tipo === "transferencia_interna" || tipo === "transferencia_lucro" || tipo === "carregamento_companhia")
     return "transfer";

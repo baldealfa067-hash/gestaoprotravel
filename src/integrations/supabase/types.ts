@@ -496,6 +496,7 @@ export type Database = {
         | "transferencia_lucro"
         | "despesa_operacional"
         | "transferencia_interna"
+        | "aporte_capital"
       ticket_status:
         | "pedido_criado"
         | "pendente"
@@ -640,6 +641,7 @@ export const Constants = {
         "transferencia_lucro",
         "despesa_operacional",
         "transferencia_interna",
+        "aporte_capital",
       ],
       ticket_status: [
         "pedido_criado",
