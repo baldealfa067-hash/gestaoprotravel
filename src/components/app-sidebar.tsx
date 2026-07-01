@@ -8,6 +8,7 @@ import {
   Settings,
   LogOut,
   Plane,
+  CalendarClock,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,6 +28,7 @@ import { useUserRole } from "@/hooks/use-auth";
 const adminItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Users },
+  { title: "Reservas", url: "/reservas", icon: CalendarClock },
   { title: "Bilhetes", url: "/bilhetes", icon: Ticket },
   { title: "Funcionários", url: "/funcionarios", icon: UserCog },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
@@ -34,6 +36,7 @@ const adminItems = [
 ];
 
 const vendedorItems = [
+  { title: "Reservas", url: "/reservas", icon: CalendarClock },
   { title: "Bilhetes", url: "/bilhetes", icon: Ticket },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
