@@ -832,12 +832,18 @@ function BilhetesPage() {
                             <DropdownMenuItem
                               onClick={() => {
                                 setPayTarget(b);
-                                setPayContaId("");
+                                setPayContaId(capitalCirculante?.id ?? "");
                               }}
                             >
                               <Wallet className="h-4 w-4 mr-2" /> Registar pagamento
                             </DropdownMenuItem>
                           )}
+                          {!cancelado && !reservasBilhetes.has(b.id) && (
+                            <DropdownMenuItem onClick={() => setReservaTarget(b)}>
+                              <CalendarClock className="h-4 w-4 mr-2" /> Criar reserva
+                            </DropdownMenuItem>
+                          )}
+
                           <DropdownMenuItem
                             onClick={() => {
                               setEditingId(b.id);
