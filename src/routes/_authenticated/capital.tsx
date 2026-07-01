@@ -322,14 +322,72 @@ function CapitalPage() {
         </div>
       </section>
 
-      <Tabs defaultValue="receita" className="space-y-4">
+      <Tabs defaultValue="contas" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="receita">Receita</TabsTrigger>
           <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
           <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
           <TabsTrigger value="dividas">Dívidas</TabsTrigger>
           <TabsTrigger value="companhias">Companhias</TabsTrigger>
         </TabsList>
+
+        {/* Contas / Capital circulante */}
+        <TabsContent value="contas" className="space-y-4">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-base">Caixas e Bancos</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Capital circulante disponível para carregar companhias e pagar despesas
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <AporteDialog contas={contas.data ?? []} />
+                <CarregarCompanhiaDialog
+                  contas={contas.data ?? []}
+                  companhias={companhias.data ?? []}
+                />
+                <NovaContaDialog />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead className="text-right">Saldo atual</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(contas.data ?? []).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">
+                        Sem contas. Clique em <b>Nova conta</b> para criar uma Caixa ou Banco.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    (contas.data ?? []).map((k: any) => (
+                      <TableRow key={k.id}>
+                        <TableCell className="font-medium">{k.nome}</TableCell>
+                        <TableCell>{k.tipo === "caixa" ? "Caixa" : "Banco"}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatCurrency(k.saldo_inicial, currency)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {k.ativa ? "Ativa" : "Inativa"}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
 
         {/* 2. Receita */}
         <TabsContent value="receita" className="space-y-4">
