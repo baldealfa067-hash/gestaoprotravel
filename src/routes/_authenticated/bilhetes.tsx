@@ -1044,9 +1044,127 @@ function BilhetesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NovaReservaDoBilheteDialog
+        bilhete={reservaTarget}
+        onClose={() => setReservaTarget(null)}
+        onSaved={() => {
+          setReservaTarget(null);
+          qc.invalidateQueries({ queryKey: ["reservas-por-bilhete"] });
+          qc.invalidateQueries({ queryKey: ["reservas"] });
+        }}
+      />
     </div>
   );
 }
+
+function NovaReservaDoBilheteDialog({
+  bilhete,
+  onClose,
+  onSaved,
+}: {
+  bilhete: any | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [pnr, setPnr] = useState("");
+  const [dataLimite, setDataLimite] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const open = !!bilhete;
+
+  // reset ao abrir
+  useMemo(() => {
+    if (bilhete) {
+      setPnr(bilhete.pnr ?? "");
+      const d = new Date(Date.now() + 48 * 36e5);
+      d.setSeconds(0, 0);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setDataLimite(
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      );
+    }
+  }, [bilhete]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bilhete) return;
+    if (!pnr.trim()) return toast.error("PNR obrigatório");
+    if (!dataLimite) return toast.error("Prazo limite obrigatório");
+    setSaving(true);
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("reservas").insert({
+      cliente_id: bilhete.cliente_id,
+      bilhete_id: bilhete.id,
+      pnr: pnr.trim().toUpperCase(),
+      companhia: bilhete.companhia,
+      origem: bilhete.origem,
+      destino: bilhete.destino,
+      classe: bilhete.classe ?? "economica",
+      continente_origem: bilhete.continente_origem ?? null,
+      continente_destino: bilhete.continente_destino ?? null,
+      data_viagem: bilhete.data_viagem,
+      data_limite: new Date(dataLimite).toISOString(),
+      status: "ativa",
+      observacoes: bilhete.observacoes ?? null,
+      user_id: u.user!.id,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Reserva criada");
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Criar reserva a partir do bilhete</DialogTitle>
+          <DialogDescription>
+            Herda cliente, rota, companhia e data. Falta preencher PNR e prazo limite.
+          </DialogDescription>
+        </DialogHeader>
+        {bilhete && (
+          <form onSubmit={submit} className="space-y-3 text-sm">
+            <Row label="Cliente" value={bilhete.cliente?.full_name ?? "—"} />
+            <Row label="Rota" value={`${bilhete.origem} → ${bilhete.destino}`} />
+            <Row label="Companhia" value={bilhete.companhia} />
+            <div className="space-y-1">
+              <Label>PNR *</Label>
+              <Input
+                className="font-mono uppercase"
+                value={pnr}
+                onChange={(e) => setPnr(e.target.value)}
+                placeholder="Ex: ABC123"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-destructive font-semibold">Prazo limite *</Label>
+              <Input
+                type="datetime-local"
+                value={dataLimite}
+                onChange={(e) => setDataLimite(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Prazo padrão sugerido: 48h a partir de agora.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "A criar..." : "Criar reserva"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
