@@ -4,7 +4,7 @@ import {
   Users,
   Ticket,
   UserCog,
-  BarChart3,
+  Coins,
   Settings,
   LogOut,
   Plane,
@@ -31,7 +31,7 @@ const adminItems = [
   { title: "Reservas", url: "/reservas", icon: CalendarClock },
   { title: "Bilhetes", url: "/bilhetes", icon: Ticket },
   { title: "Funcionários", url: "/funcionarios", icon: UserCog },
-  { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
+  { title: "Capital", url: "/capital", icon: Coins },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 

@@ -18,6 +18,7 @@ import { Route as AuthenticatedFuncionariosRouteImport } from './routes/_authent
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedCapitalRouteImport } from './routes/_authenticated/capital'
 import { Route as AuthenticatedBilhetesRouteImport } from './routes/_authenticated/bilhetes'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -66,6 +67,11 @@ const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCapitalRoute = AuthenticatedCapitalRouteImport.update({
+  id: '/capital',
+  path: '/capital',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBilhetesRoute = AuthenticatedBilhetesRouteImport.update({
   id: '/bilhetes',
   path: '/bilhetes',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/bilhetes': typeof AuthenticatedBilhetesRoute
+  '/capital': typeof AuthenticatedCapitalRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/bilhetes': typeof AuthenticatedBilhetesRoute
+  '/capital': typeof AuthenticatedCapitalRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/bilhetes': typeof AuthenticatedBilhetesRoute
+  '/_authenticated/capital': typeof AuthenticatedCapitalRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/bilhetes'
+    | '/capital'
     | '/clientes'
     | '/configuracoes'
     | '/dashboard'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/bilhetes'
+    | '/capital'
     | '/clientes'
     | '/configuracoes'
     | '/dashboard'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/bilhetes'
+    | '/_authenticated/capital'
     | '/_authenticated/clientes'
     | '/_authenticated/configuracoes'
     | '/_authenticated/dashboard'
@@ -216,6 +228,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/capital': {
+      id: '/_authenticated/capital'
+      path: '/capital'
+      fullPath: '/capital'
+      preLoaderRoute: typeof AuthenticatedCapitalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/bilhetes': {
       id: '/_authenticated/bilhetes'
       path: '/bilhetes'
@@ -228,6 +247,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBilhetesRoute: typeof AuthenticatedBilhetesRoute
+  AuthenticatedCapitalRoute: typeof AuthenticatedCapitalRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -237,6 +257,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBilhetesRoute: AuthenticatedBilhetesRoute,
+  AuthenticatedCapitalRoute: AuthenticatedCapitalRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
