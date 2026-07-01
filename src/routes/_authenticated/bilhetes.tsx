@@ -791,7 +791,20 @@ function BilhetesPage() {
                     </TableCell>
                     <TableCell>{b.companhia}</TableCell>
                     <TableCell>{formatDate(b.data_viagem)}</TableCell>
-                    <TableCell className="font-mono text-xs">{b.pnr ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span>{b.pnr ?? "—"}</span>
+                        {reservasBilhetes.has(b.id) && (
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1 text-[10px] bg-primary/10 text-primary border-primary/30"
+                          >
+                            reserva
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(b.custo, currency)}
                     </TableCell>
