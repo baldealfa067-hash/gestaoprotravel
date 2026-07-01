@@ -14,7 +14,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedReservasRouteImport } from './routes/_authenticated/reservas'
-import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedFuncionariosRouteImport } from './routes/_authenticated/funcionarios'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
@@ -43,11 +42,6 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedReservasRoute = AuthenticatedReservasRouteImport.update({
   id: '/reservas',
   path: '/reservas',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
-  id: '/relatorios',
-  path: '/relatorios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedFuncionariosRoute =
@@ -87,7 +81,6 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
-  '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/reservas': typeof AuthenticatedReservasRoute
 }
 export interface FileRoutesByTo {
@@ -99,7 +92,6 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
-  '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/reservas': typeof AuthenticatedReservasRoute
 }
 export interface FileRoutesById {
@@ -113,7 +105,6 @@ export interface FileRoutesById {
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/funcionarios': typeof AuthenticatedFuncionariosRoute
-  '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/reservas': typeof AuthenticatedReservasRoute
 }
 export interface FileRouteTypes {
@@ -127,7 +118,6 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/dashboard'
     | '/funcionarios'
-    | '/relatorios'
     | '/reservas'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -139,7 +129,6 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/dashboard'
     | '/funcionarios'
-    | '/relatorios'
     | '/reservas'
   id:
     | '__root__'
@@ -152,7 +141,6 @@ export interface FileRouteTypes {
     | '/_authenticated/configuracoes'
     | '/_authenticated/dashboard'
     | '/_authenticated/funcionarios'
-    | '/_authenticated/relatorios'
     | '/_authenticated/reservas'
   fileRoutesById: FileRoutesById
 }
@@ -200,13 +188,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReservasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/relatorios': {
-      id: '/_authenticated/relatorios'
-      path: '/relatorios'
-      fullPath: '/relatorios'
-      preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/funcionarios': {
       id: '/_authenticated/funcionarios'
       path: '/funcionarios'
@@ -251,7 +232,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFuncionariosRoute: typeof AuthenticatedFuncionariosRoute
-  AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedReservasRoute: typeof AuthenticatedReservasRoute
 }
 
@@ -261,7 +241,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFuncionariosRoute: AuthenticatedFuncionariosRoute,
-  AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedReservasRoute: AuthenticatedReservasRoute,
 }
 
