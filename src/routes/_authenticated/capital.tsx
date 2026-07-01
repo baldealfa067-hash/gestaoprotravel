@@ -45,6 +45,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ArrowLeftRight,
+  Trash2,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
@@ -69,6 +70,7 @@ export const Route = createFileRoute("/_authenticated/capital")({
 function CapitalPage() {
   const { data: settings } = useAgencySettings();
   const currency = settings?.currency ?? "AOA";
+  const qc = useQueryClient();
 
   const consistencia = useQuery({
     queryKey: ["capital-consistencia"],
@@ -383,12 +385,13 @@ function CapitalPage() {
                     <TableHead>Tipo</TableHead>
                     <TableHead className="text-right">Saldo atual</TableHead>
                     <TableHead>Estado</TableHead>
+                    <TableHead className="w-[1%]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {(contas.data ?? []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">
+                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
                         Sem contas. Clique em <b>Nova conta</b> para criar uma Caixa ou Banco.
                       </TableCell>
                     </TableRow>
@@ -415,6 +418,41 @@ function CapitalPage() {
                         <TableCell className="text-xs text-muted-foreground">
                           {k.ativa ? "Ativa" : "Inativa"}
                         </TableCell>
+                        <TableCell className="text-right">
+                          {!k.sistema && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Eliminar conta"
+                              onClick={async () => {
+                                if (!confirm(`Eliminar a conta "${k.nome}"? Esta ação não pode ser desfeita.`)) return;
+                                const { error } = await (supabase as any)
+                                  .from("contas_financeiras")
+                                  .delete()
+                                  .eq("id", k.id);
+                                if (error) {
+                                  // Fallback: se houver movimentações a referenciar, desativar em vez de eliminar
+                                  const { error: e2 } = await (supabase as any)
+                                    .from("contas_financeiras")
+                                    .update({ ativa: false })
+                                    .eq("id", k.id);
+                                  if (e2) {
+                                    toast.error("Não foi possível eliminar a conta");
+                                    return;
+                                  }
+                                  toast.success("Conta desativada (tem movimentações associadas)");
+                                } else {
+                                  toast.success("Conta eliminada");
+                                }
+                                qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+                                qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -423,6 +461,7 @@ function CapitalPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
 
 
 
