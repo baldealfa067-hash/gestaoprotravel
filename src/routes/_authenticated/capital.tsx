@@ -1214,9 +1214,12 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
               <SelectContent>
                 {contas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
+                    {c.sistema ? "★ " : ""}
                     {c.nome} — saldo {Number(c.saldo_inicial).toLocaleString()}
+                    {c.sistema ? " (Capital Circulante)" : ""}
                   </SelectItem>
                 ))}
+
               </SelectContent>
             </Select>
           </div>
