@@ -647,72 +647,8 @@ function CapitalPage() {
   );
 }
 
-function ResumoCard({
-  icon,
-  label,
-  value,
-  currency,
-  hint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  currency: string;
-  hint: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {icon} {label}
-        </div>
-        <div className="text-xl font-bold mt-2 tabular-nums">
-          {formatCurrency(value, currency)}
-        </div>
-        <div className="text-xs text-muted-foreground mt-1">{hint}</div>
-      </CardContent>
-    </Card>
-  );
-}
 
-function BreakdownCard({
-  title,
-  data,
-  currency,
-}: {
-  title: string;
-  data: [string, number][];
-  currency: string;
-}) {
-  const max = Math.max(1, ...data.map((d) => d[1]));
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {data.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-4">Sem dados</p>
-        ) : (
-          data.map(([label, val]) => (
-            <div key={label} className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="truncate mr-2">{label}</span>
-                <span className="tabular-nums font-medium">{formatCurrency(val, currency)}</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full"
-                  style={{ width: `${(val / max) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+
 
 function NovaCompanhiaDialog() {
   const qc = useQueryClient();
