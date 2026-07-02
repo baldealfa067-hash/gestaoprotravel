@@ -501,6 +501,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      sincronizar_capital_base: {
+        Args: never
+        Returns: {
+          delta: number
+          novo_saldo_circulante: number
+        }[]
+      }
       verificar_consistencia_capital: {
         Args: never
         Returns: {

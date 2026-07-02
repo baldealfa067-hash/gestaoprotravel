@@ -212,9 +212,11 @@ function CapitalPage() {
 
   const c = consistencia.data;
   const capitalBase = c?.capital_base ?? 0;
-  const circulacao = c?.capital_total ?? 0;
-  const divergencia = c?.diferenca ?? 0;
-  const integro = c?.consistente ?? false;
+  const emCaixa = c?.capital_contas ?? 0;
+  const foraDoCaixa = (c?.capital_companhias ?? 0) + (c?.capital_dividas ?? 0);
+  const totalOperacional = emCaixa + foraDoCaixa;
+  const divergencia = totalOperacional - capitalBase;
+  const integro = Math.abs(divergencia) < 1;
 
   return (
     <div className="space-y-6">
@@ -222,13 +224,13 @@ function CapitalPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Capital</h1>
           <p className="text-muted-foreground text-sm">
-            Rastreamento operacional — o dinheiro circula, o lucro é separado
+            O dinheiro circula entre caixa, companhias e dívidas — o lucro fica à parte
           </p>
         </div>
         {c &&
           (integro ? (
             <Badge className="bg-success/15 text-success border border-success/40 gap-1.5 py-1.5 px-3">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Capital operacional íntegro
+              <CheckCircle2 className="h-3.5 w-3.5" /> Capital íntegro
             </Badge>
           ) : (
             <Badge className="bg-destructive/15 text-destructive border border-destructive/40 gap-1.5 py-1.5 px-3">
@@ -258,13 +260,13 @@ function CapitalPage() {
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <ArrowLeftRight className="h-4 w-4" /> Capital em Circulação
+              <Wallet className="h-4 w-4" /> Em Caixa / Bancos
             </div>
             <div className="text-2xl font-bold mt-2 tabular-nums text-primary">
-              {formatCurrency(circulacao, currency)}
+              {formatCurrency(emCaixa, currency)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Caixa/Bancos + Companhias + Dívidas
+              Dinheiro disponível nas contas
             </div>
           </CardContent>
         </Card>
@@ -272,34 +274,19 @@ function CapitalPage() {
         <Card
           className={
             integro
-              ? "border-success/40 bg-success/5"
+              ? "border-warning/40 bg-warning/5"
               : "border-destructive/40 bg-destructive/5"
           }
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {integro ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <AlertCircle className="h-4 w-4" />
-              )}{" "}
-              Divergência
+              <ArrowLeftRight className="h-4 w-4" /> Fora do Caixa
             </div>
-            <div
-              className={`text-2xl font-bold mt-2 tabular-nums ${
-                integro ? "text-success" : "text-destructive"
-              }`}
-            >
-              {integro
-                ? formatCurrency(0, currency)
-                : `${divergencia > 0 ? "+" : ""}${formatCurrency(divergencia, currency)}`}
+            <div className="text-2xl font-bold mt-2 tabular-nums text-warning">
+              {formatCurrency(foraDoCaixa, currency)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {integro
-                ? "Capital operacional íntegro"
-                : divergencia > 0
-                  ? "Sobra em circulação"
-                  : "Falta em circulação"}
+              Em companhias + a receber de clientes
             </div>
           </CardContent>
         </Card>
@@ -318,6 +305,7 @@ function CapitalPage() {
           </CardContent>
         </Card>
       </section>
+
 
       {/* Ações rápidas */}
       <div className="flex flex-wrap gap-2">

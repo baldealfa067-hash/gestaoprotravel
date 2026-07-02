@@ -106,13 +106,21 @@ function ConfiguracoesPage() {
         const { error } = await supabase.from("agency_settings").insert(payload);
         if (error) throw error;
       }
+
+      // Sincroniza saldo do Capital Circulante com a nova Base
+      const { error: rpcErr } = await supabase.rpc("sincronizar_capital_base" as any);
+      if (rpcErr) throw rpcErr;
     },
     onSuccess: () => {
-      toast.success("Configurações atualizadas");
+      toast.success("Configurações atualizadas e capital sincronizado");
       qc.invalidateQueries({ queryKey: ["agency_settings"] });
+      qc.invalidateQueries({ queryKey: ["contas"] });
+      qc.invalidateQueries({ queryKey: ["consistencia"] });
+      qc.invalidateQueries({ queryKey: ["movimentacoes"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <div className="space-y-6 max-w-3xl">
