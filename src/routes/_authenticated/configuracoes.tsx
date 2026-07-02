@@ -8,11 +8,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { useUserRole } from "@/hooks/use-auth";
 import { RequireAdmin } from "@/components/require-admin";
-import { Upload, X } from "lucide-react";
+import { Upload, X, AlertTriangle } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { resetAllData } from "@/lib/reset-data.functions";
+
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   component: () => (
