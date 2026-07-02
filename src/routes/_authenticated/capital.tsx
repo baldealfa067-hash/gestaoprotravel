@@ -82,6 +82,7 @@ function CapitalPage() {
         capital_companhias: number;
         capital_dividas: number;
         capital_total: number;
+        capital_base: number;
         fundo_lucro: number;
         taxa_acumulada: number;
         diferenca: number;
@@ -90,6 +91,7 @@ function CapitalPage() {
     },
     refetchInterval: 30_000,
   });
+
 
   const contas = useQuery({
     queryKey: ["contas_financeiras"],
