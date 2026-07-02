@@ -82,7 +82,9 @@ function ConfiguracoesPage() {
         email: email || null,
         endereco: endereco || null,
         nif: nif || null,
+        capital_base_operacional: Number(capitalBase) || 0,
       };
+
       if (settings?.id) {
         const { error } = await supabase
           .from("agency_settings")
