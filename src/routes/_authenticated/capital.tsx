@@ -35,10 +35,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  AlertCircle,
-  CheckCircle2,
   Wallet,
   PiggyBank,
+  Plane,
+  Users,
   ArrowUpRight,
   ArrowDownLeft,
   ArrowLeftRight,
