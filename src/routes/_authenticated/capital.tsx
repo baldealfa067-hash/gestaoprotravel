@@ -211,82 +211,60 @@ function CapitalPage() {
   }, [bilhetes.data]);
 
   const c = consistencia.data;
-  const capitalBase = c?.capital_base ?? 0;
   const emCaixa = c?.capital_contas ?? 0;
-  const foraDoCaixa = (c?.capital_companhias ?? 0) + (c?.capital_dividas ?? 0);
-  const totalOperacional = emCaixa + foraDoCaixa;
-  const divergencia = totalOperacional - capitalBase;
-  const integro = Math.abs(divergencia) < 1;
+  const emCompanhias = c?.capital_companhias ?? 0;
+  const aReceber = c?.capital_dividas ?? 0;
+  const fundoLucro = c?.fundo_lucro ?? 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Capital</h1>
-          <p className="text-muted-foreground text-sm">
-            O dinheiro circula entre caixa, companhias e dívidas — o lucro fica à parte
-          </p>
-        </div>
-        {c &&
-          (integro ? (
-            <Badge className="bg-success/15 text-success border border-success/40 gap-1.5 py-1.5 px-3">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Capital íntegro
-            </Badge>
-          ) : (
-            <Badge className="bg-destructive/15 text-destructive border border-destructive/40 gap-1.5 py-1.5 px-3">
-              <AlertCircle className="h-3.5 w-3.5" />
-              Divergência: {divergencia > 0 ? "+" : ""}
-              {formatCurrency(divergencia, currency)}
-            </Badge>
-          ))}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Capital</h1>
+        <p className="text-muted-foreground text-sm">
+          Circulação do dinheiro: caixa → companhias → dívidas → caixa. O lucro é separado.
+        </p>
       </div>
 
       {/* Resumo operacional */}
       <section className="grid gap-3 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Wallet className="h-4 w-4" /> Capital Base
-            </div>
-            <div className="text-2xl font-bold mt-2 tabular-nums">
-              {formatCurrency(capitalBase, currency)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Valor fixo definido em Configurações
-            </div>
-          </CardContent>
-        </Card>
-
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Wallet className="h-4 w-4" /> Em Caixa / Bancos
+              <Wallet className="h-4 w-4" /> Capital Circulante
             </div>
             <div className="text-2xl font-bold mt-2 tabular-nums text-primary">
               {formatCurrency(emCaixa, currency)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Dinheiro disponível nas contas
+              Dinheiro disponível em caixa / bancos
             </div>
           </CardContent>
         </Card>
 
-        <Card
-          className={
-            integro
-              ? "border-warning/40 bg-warning/5"
-              : "border-destructive/40 bg-destructive/5"
-          }
-        >
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <ArrowLeftRight className="h-4 w-4" /> Fora do Caixa
+              <Plane className="h-4 w-4" /> Em Companhias
             </div>
-            <div className="text-2xl font-bold mt-2 tabular-nums text-warning">
-              {formatCurrency(foraDoCaixa, currency)}
+            <div className="text-2xl font-bold mt-2 tabular-nums">
+              {formatCurrency(emCompanhias, currency)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Em companhias + a receber de clientes
+              Saldo carregado nas cias aéreas
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-warning/40 bg-warning/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Users className="h-4 w-4" /> A Receber
+            </div>
+            <div className="text-2xl font-bold mt-2 tabular-nums text-warning">
+              {formatCurrency(aReceber, currency)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Bilhetes emitidos ainda por pagar
             </div>
           </CardContent>
         </Card>
@@ -297,14 +275,22 @@ function CapitalPage() {
               <PiggyBank className="h-4 w-4" /> Fundo de Lucro
             </div>
             <div className="text-2xl font-bold mt-2 tabular-nums text-success">
-              {formatCurrency(c?.fundo_lucro ?? 0, currency)}
+              {formatCurrency(fundoLucro, currency)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Separado do capital operacional
+              Taxas acumuladas (separado)
             </div>
           </CardContent>
         </Card>
       </section>
+
+      <div className="text-xs text-muted-foreground bg-muted/40 border rounded-md px-3 py-2">
+        <b>Total operacional:</b>{" "}
+        {formatCurrency(emCaixa + emCompanhias + aReceber, currency)} — é o dinheiro
+        que circula entre caixa, companhias e clientes. Não muda ao carregar cias ou emitir
+        bilhetes; só sobe com aportes e desce com despesas. O lucro cresce à parte.
+      </div>
+
 
 
       {/* Ações rápidas */}
