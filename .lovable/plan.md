@@ -1,59 +1,74 @@
-## Objetivo
+## 1. Ampliar a tabela `agency_settings`
 
-1. Introduzir o conceito de **Capital Circulante** como bolso fixo que financia companhias e recebe o custo de volta após venda.
-2. Ligar **Bilhetes → Reservas** com botão de criação direta.
+Adicionar colunas para identidade completa da agência:
 
----
+- `logo_url` (text) — Uplaod de imagem  (Supabase Storage)
+- `telefone` (text)
+- `email` (text)
+- `endereco` (text)
+- `nif` (text, opcional — útil em recibos)
 
-## 1. Capital Circulante (conta dedicada)
+Criar bucket público `agency-assets` no Storage para armazenar o logotipo, com policies de upload/update restritas a admins e leitura pública.
 
-### Base de dados (migração)
-- Garantir a existência de uma conta `contas_financeiras` com `nome = 'Capital Circulante'`, `tipo = 'banco'` (criada via seed idempotente na migração; marcada como conta padrão do sistema).
-- Adicionar coluna `sistema BOOLEAN DEFAULT false` em `contas_financeiras` para proteger a conta Capital Circulante de eliminação/renomeação acidental.
-- Atualizar o trigger `aplicar_movimentacao` para o tipo `pagamento_cliente`:
-  - Ler `custo` e `taxa_agencia` do bilhete associado.
-  - Creditar `custo` na conta destino escolhida (o Capital Circulante por padrão).
-  - Creditar `taxa_agencia` diretamente no `fundo_lucro`.
-  - Marcar bilhete como `pago = true`.
-  - Se `valor` do movimento ≠ custo+taxa, usar proporção; se bilhete não estiver associado, cair no comportamento atual (tudo para a conta).
-- Manter `carregamento_companhia` como está: já debita a conta origem (que passa a ser o Capital Circulante por defeito) e credita a companhia.
-- Manter `aporte_capital`: por defeito credita o Capital Circulante.
+## 2. Página **Configurações** (`src/routes/_authenticated/configuracoes.tsx`)
 
-### UI — `src/routes/_authenticated/capital.tsx`
-- Novo card "Capital Circulante" no topo do separador **Contas** mostrando saldo atual, total já usado em carregamentos e total devolvido por pagamentos (agregando `movimentacoes_capital`).
-- Nos diálogos `AporteDialog` e `CarregarCompanhiaDialog`: pré-selecionar a conta "Capital Circulante" e destacá-la visualmente na lista.
-- Bloquear apagar/renomear conta com `sistema = true`.
-- Legenda explicativa: "Este valor diminui ao carregar companhias e volta a subir quando o cliente paga (custo → Capital Circulante, taxa → Fundo de Lucro)."
+Reformular o formulário conforme a imagem de referência:
 
-### UI — `src/routes/_authenticated/bilhetes.tsx`
-- No diálogo "Registar Pagamento", a conta destino passa a estar pré-selecionada como Capital Circulante e o resumo mostra a divisão: `Custo → Capital Circulante` + `Taxa → Fundo de Lucro`.
-- Remover a necessidade de o admin transferir lucro manualmente depois.
+- Nome da agência
+- Moeda principal
+- **Logótipo** — miniatura + input `type=file` (PNG/JPG/WEBP/SVG, máx 1 MB) com botão "Remover"
+- Telefone e Email (grid 2 colunas)
+- Endereço (textarea)
+- Botão "Guardar"
 
----
+Só admins podem editar. Upload do logo vai para o bucket `agency-assets` e grava a URL em `logo_url`. Validação de tamanho/tipo no cliente.
 
-## 2. Ligação Bilhete → Reserva
+## 3. Impressão / PDF de bilhetes e recibos
 
-### Base de dados (mesma migração)
-- Adicionar coluna `bilhete_id UUID REFERENCES bilhetes(id) ON DELETE SET NULL` em `reservas` (facilita rastreio inverso).
-- Índice em `reservas.bilhete_id`.
+Criar componente `PrintableDocument` reutilizável com cabeçalho oficial:
 
-### UI — `src/routes/_authenticated/bilhetes.tsx`
-- Novo botão/ação **"Criar reserva"** no dropdown de cada linha do bilhete.
-- Diálogo `NovaReservaDoBilheteDialog`:
-  - Pré-preenche: cliente, companhia, origem, destino, classe, continentes, data_viagem, observações.
-  - Campos a preencher: `PNR` (obrigatório) e `data_limite` (obrigatório, com sugestão default de 48h).
-  - Ao gravar: insere em `reservas` com `bilhete_id` = bilhete atual e `user_id` = auth.uid().
-- Badge visual no bilhete quando já existe reserva associada (consulta agregada por `bilhete_id`).
+```
+[LOGO]   Agência Travel GB
+         Praça retunda de antula
+         Tel: 957107795 · baldealfa067@gmail.com
+         NIF: ...
+─────────────────────────────────────────────
+BILHETE Nº ... / RECIBO Nº ...
+[corpo específico]
+```
 
-### UI — `src/routes/_authenticated/reservas.tsx`
-- Coluna/badge indicando "Origem: bilhete" quando `bilhete_id` está preenchido, com link para o bilhete.
+Dois documentos:
 
----
+- **Bilhete emitido** — passageiro, PNR, rota, data viagem, classe, companhia, valor, taxa, total
+- **Recibo de pagamento** — cliente, bilhete associado, valor pago, forma de pagamento, data, assinatura
 
-## Fora de âmbito
-- Conversão reserva → bilhete (não solicitada nesta iteração).
-- Alteração da lógica de cálculo de taxa ou dos outros tipos de movimentação.
+Implementação:
 
-## Resumo
+- Componente React `<PrintableDocument variant="bilhete|recibo" data={...} />` já com estilos `@media print` (esconde nav/sidebar) e classes A4.
+- Hook `useAgencyBranding()` — reusa `useAgencySettings` e devolve nome, logo, contactos.
+- Botão **Imprimir / Baixar PDF** aparece em:
+  - Página `bilhetes.tsx`: em cada linha com status `emitido` ou `pago`
+  - Dialog de "Registar Pagamento" após sucesso: botão para gerar recibo
+- Ação: abre um dialog com o preview do documento + botões "Imprimir" (usa `window.print()` filtrando via CSS) e "Baixar PDF" (usa `html2pdf.js` ou `jspdf` + `html2canvas`).
 
-Capital Circulante torna-se uma conta protegida do sistema; carregar companhia consome dela, pagamento de cliente devolve o custo a ela e envia só a taxa para o Fundo de Lucro. No módulo Bilhetes, cada linha ganha ação "Criar reserva" que gera um PNR ligado ao bilhete.
+Dependência nova: `html2pdf.js` (bundla jspdf + html2canvas, funciona no browser sem Node APIs).
+
+## 4. Fluxo do utilizador
+
+1. Admin abre Configurações → preenche dados e faz upload do logotipo → Guardar.
+2. Ao emitir um bilhete ou registar pagamento, aparece botão **Imprimir/PDF**.
+3. Clica → abre preview com branding da agência → imprime ou baixa PDF.
+
+## Ficheiros afetados
+
+- `supabase/migrations/<novo>.sql` — colunas novas + bucket + policies
+- `src/routes/_authenticated/configuracoes.tsx` — formulário expandido
+- `src/hooks/use-agency-settings.ts` — sem mudança (tipos regenerados)
+- `src/components/printable/PrintableDocument.tsx` (novo)
+- `src/components/printable/PrintBilheteDialog.tsx` (novo)
+- `src/components/printable/PrintReciboDialog.tsx` (novo)
+- `src/routes/_authenticated/bilhetes.tsx` — botões Imprimir/Recibo
+- `src/styles.css` — regras `@media print`
+- `package.json` — adicionar `html2pdf.js`
+
+Confirma para eu implementar?

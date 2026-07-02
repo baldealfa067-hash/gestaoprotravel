@@ -19,21 +19,36 @@ export type Database = {
           agency_name: string
           created_at: string
           currency: string
+          email: string | null
+          endereco: string | null
           id: string
+          logo_url: string | null
+          nif: string | null
+          telefone: string | null
           updated_at: string
         }
         Insert: {
           agency_name?: string
           created_at?: string
           currency?: string
+          email?: string | null
+          endereco?: string | null
           id?: string
+          logo_url?: string | null
+          nif?: string | null
+          telefone?: string | null
           updated_at?: string
         }
         Update: {
           agency_name?: string
           created_at?: string
           currency?: string
+          email?: string | null
+          endereco?: string | null
           id?: string
+          logo_url?: string | null
+          nif?: string | null
+          telefone?: string | null
           updated_at?: string
         }
         Relationships: []
