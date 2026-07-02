@@ -38,26 +38,22 @@ import {
   AlertCircle,
   CheckCircle2,
   Wallet,
-  Plane,
-  Users,
-  TrendingUp,
   PiggyBank,
   ArrowUpRight,
   ArrowDownLeft,
   ArrowLeftRight,
-  Trash2,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import {
-  CONTINENTE_LABEL,
   DIR_COLOR,
   MOV_TIPO_LABEL,
   MOV_TIPO_OPTIONS,
   debtStatus,
   movDirection,
 } from "@/lib/capital";
-import { differenceInCalendarDays, startOfMonth } from "date-fns";
+import { differenceInCalendarDays } from "date-fns";
+
 
 export const Route = createFileRoute("/_authenticated/capital")({
   component: () => (
