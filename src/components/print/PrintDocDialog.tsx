@@ -58,29 +58,60 @@ export function PrintDocDialog({ open, onClose, type, data }: Props) {
 
   const title = type === "bilhete" ? "Bilhete" : "Recibo de Pagamento";
 
-  const handlePrint = () => {
-    window.print();
+  const openPrintWindow = (autoPrint: boolean) => {
+    if (!printRef.current) return;
+    const win = window.open("", "_blank", "width=900,height=1200");
+    if (!win) {
+      toast.error("O navegador bloqueou a janela. Permite pop-ups deste site.");
+      return;
+    }
+    const contentHtml = printRef.current.outerHTML;
+    win.document.write(`<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8" />
+<title>${title} - ${data.numero}</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 14px; line-height: 1.4; }
+  .print-area { padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px 0; color: #111; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px 0; }
+  img { max-height: 80px; object-fit: contain; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .header { display: flex; align-items: flex-start; gap: 16px; padding-bottom: 12px; border-bottom: 2px solid #222; }
+  .header .meta { flex: 1; }
+  .header .doc { text-align: right; }
+  .label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #666; }
+  .value { font-size: 14px; font-weight: 500; color: #111; margin-top: 2px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .totals { border-top: 1px solid #222; margin-top: 12px; padding-top: 8px; }
+  .amount-box { background: #f5f5f5; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; padding: 12px 16px; margin: 12px 0; border-radius: 6px; }
+  .amount-box .big { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .signatures { margin-top: 64px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; text-align: center; font-size: 11px; color: #555; }
+  .signatures .line { border-top: 1px solid #666; padding-top: 4px; }
+  .footer { margin-top: 32px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 10px; color: #777; text-align: center; }
+  @page { size: A4; margin: 12mm; }
+  @media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+${contentHtml}
+<script>
+  window.onload = function() {
+    ${autoPrint ? "setTimeout(function(){ window.focus(); window.print(); }, 200);" : ""}
+  };
+</script>
+</body>
+</html>`);
+    win.document.close();
   };
 
-  const handleDownloadPdf = async () => {
-    if (!printRef.current) return;
-    try {
-      // dynamic import — keeps bundle lean
-      const mod: any = await import("html2pdf.js");
-      const html2pdf = mod.default ?? mod;
-      await html2pdf()
-        .set({
-          margin: [10, 10, 10, 10],
-          filename: `${title}-${data.numero}.pdf`,
-          image: { type: "jpeg", quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        })
-        .from(printRef.current)
-        .save();
-    } catch (e: any) {
-      toast.error("Erro ao gerar PDF: " + (e?.message ?? String(e)));
-    }
+  const handlePrint = () => openPrintWindow(true);
+  const handleDownloadPdf = () => {
+    openPrintWindow(true);
+    toast.info('Escolhe "Guardar como PDF" no destino de impressão.');
   };
 
   return (
