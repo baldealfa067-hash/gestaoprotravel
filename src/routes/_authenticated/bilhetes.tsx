@@ -903,7 +903,17 @@ function BilhetesPage() {
                             <DropdownMenuItem onClick={() => setReservaTarget(b)}>
                               <CalendarClock className="h-4 w-4 mr-2" /> Criar reserva
                             </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => openPrint(b, "bilhete")}>
+                            <Printer className="h-4 w-4 mr-2" /> Imprimir bilhete
+                          </DropdownMenuItem>
+                          {b.pago && (
+                            <DropdownMenuItem onClick={() => openPrint(b, "recibo")}>
+                              <Receipt className="h-4 w-4 mr-2" /> Recibo de pagamento
+                            </DropdownMenuItem>
                           )}
+
 
                           <DropdownMenuItem
                             onClick={() => {
