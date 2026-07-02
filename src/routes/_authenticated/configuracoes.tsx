@@ -1,16 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { useUserRole } from "@/hooks/use-auth";
 import { RequireAdmin } from "@/components/require-admin";
+import { Upload, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   component: () => (
@@ -21,26 +23,65 @@ export const Route = createFileRoute("/_authenticated/configuracoes")({
 });
 
 const CURRENCIES = ["AOA", "XOF", "USD", "EUR", "BRL", "ZAR", "MZN", "CVE", "GBP"];
+const MAX_LOGO_BYTES = 1024 * 1024; // 1 MB
+const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 
 function ConfiguracoesPage() {
   const qc = useQueryClient();
   const { data: settings } = useAgencySettings();
   const { isAdmin } = useUserRole();
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("AOA");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [telefone, setTelefone] = useState("");
+  const [email, setEmail] = useState("");
+  const [endereco, setEndereco] = useState("");
+  const [nif, setNif] = useState("");
 
   useEffect(() => {
     if (settings) {
       setName(settings.agency_name);
       setCurrency(settings.currency);
+      setLogoUrl((settings as any).logo_url ?? null);
+      setTelefone((settings as any).telefone ?? "");
+      setEmail((settings as any).email ?? "");
+      setEndereco((settings as any).endereco ?? "");
+      setNif((settings as any).nif ?? "");
     }
   }, [settings]);
+
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!ACCEPTED_TYPES.includes(f.type)) {
+      toast.error("Formato inválido. Use PNG, JPG, WEBP ou SVG.");
+      return;
+    }
+    if (f.size > MAX_LOGO_BYTES) {
+      toast.error("Ficheiro maior que 1 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setLogoUrl(reader.result as string);
+    reader.onerror = () => toast.error("Erro ao ler ficheiro.");
+    reader.readAsDataURL(f);
+  };
 
   const save = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
         .from("agency_settings")
-        .update({ agency_name: name, currency })
+        .update({
+          agency_name: name,
+          currency,
+          logo_url: logoUrl,
+          telefone: telefone || null,
+          email: email || null,
+          endereco: endereco || null,
+          nif: nif || null,
+        } as any)
         .eq("id", settings!.id);
       if (error) throw error;
     },
@@ -52,33 +93,122 @@ function ConfiguracoesPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground text-sm">Identidade da agência e moeda</p>
+        <p className="text-muted-foreground text-sm">
+          Identidade da agência — aparece nos bilhetes e recibos emitidos
+        </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Agência</CardTitle>
-          <CardDescription>{isAdmin ? "Edite os dados gerais" : "Apenas administradores podem editar"}</CardDescription>
+          <CardDescription>
+            {isAdmin ? "Edite os dados gerais" : "Apenas administradores podem editar"}
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
           <div className="space-y-2">
             <Label>Nome da agência</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isAdmin} />
           </div>
+
           <div className="space-y-2">
             <Label>Moeda principal</Label>
             <Select value={currency} onValueChange={setCurrency} disabled={!isAdmin}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label>Logótipo da agência</Label>
+            <div className="flex items-center gap-3">
+              <div className="h-16 w-16 rounded border bg-muted/40 flex items-center justify-center overflow-hidden shrink-0">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
+                ) : (
+                  <span className="text-xs text-muted-foreground">Sem logo</span>
+                )}
+              </div>
+              <Input
+                ref={fileRef}
+                type="file"
+                accept={ACCEPTED_TYPES.join(",")}
+                onChange={onPickFile}
+                disabled={!isAdmin}
+                className="flex-1"
+              />
+              {logoUrl && isAdmin && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLogoUrl(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
+                >
+                  <X className="h-4 w-4 mr-1" /> Remover
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              PNG, JPG, WEBP ou SVG. Máximo 1 MB.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                disabled={!isAdmin}
+                placeholder="+244 900 000 000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={!isAdmin}
+                placeholder="contacto@agencia.com"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Endereço</Label>
+            <Textarea
+              value={endereco}
+              onChange={(e) => setEndereco(e.target.value)}
+              disabled={!isAdmin}
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>NIF (opcional)</Label>
+            <Input value={nif} onChange={(e) => setNif(e.target.value)} disabled={!isAdmin} />
+          </div>
+
           {isAdmin && (
-            <Button onClick={() => save.mutate()} disabled={save.isPending}>Guardar</Button>
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              <Upload className="h-4 w-4 mr-2" />
+              {save.isPending ? "A guardar..." : "Guardar"}
+            </Button>
           )}
         </CardContent>
       </Card>
