@@ -17,6 +17,7 @@ export type Database = {
       agency_settings: {
         Row: {
           agency_name: string
+          capital_base_operacional: number
           created_at: string
           currency: string
           email: string | null
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           agency_name?: string
+          capital_base_operacional?: number
           created_at?: string
           currency?: string
           email?: string | null
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           agency_name?: string
+          capital_base_operacional?: number
           created_at?: string
           currency?: string
           email?: string | null

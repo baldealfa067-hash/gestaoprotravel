@@ -1,0 +1,1 @@
+ALTER TABLE public.agency_settings ADD COLUMN IF NOT EXISTS capital_base_operacional numeric NOT NULL DEFAULT 0;
