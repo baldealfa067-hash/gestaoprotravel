@@ -215,6 +215,26 @@ function ConfiguracoesPage() {
             <Input value={nif} onChange={(e) => setNif(e.target.value)} disabled={!isAdmin} />
           </div>
 
+          <div className="space-y-2 pt-4 border-t">
+            <Label>Capital base operacional</Label>
+            <Input
+              type="number"
+              min={0}
+              step="1"
+              value={capitalBase}
+              onChange={(e) => setCapitalBase(e.target.value)}
+              disabled={!isAdmin}
+              placeholder="0"
+            />
+            <p className="text-xs text-muted-foreground">
+              Valor fixo do capital operacional da agência ({currency}). O sistema alerta quando
+              Caixa/Bancos + Companhias + Dívidas divergirem deste valor. O lucro é rastreado
+              separadamente e não entra nesta conta.
+            </p>
+          </div>
+
+
+
           {isAdmin && (
             <Button onClick={() => save.mutate()} disabled={save.isPending}>
               <Upload className="h-4 w-4 mr-2" />
