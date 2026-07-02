@@ -1115,6 +1115,13 @@ function BilhetesPage() {
           qc.invalidateQueries({ queryKey: ["reservas"] });
         }}
       />
+
+      <PrintDocDialog
+        open={!!printState}
+        onClose={() => setPrintState(null)}
+        type={printState?.type ?? "bilhete"}
+        data={printState?.data ?? null}
+      />
     </div>
   );
 }
