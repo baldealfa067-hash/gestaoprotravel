@@ -82,6 +82,7 @@ function CapitalPage() {
         capital_companhias: number;
         capital_dividas: number;
         capital_total: number;
+        capital_base: number;
         fundo_lucro: number;
         taxa_acumulada: number;
         diferenca: number;
@@ -90,6 +91,7 @@ function CapitalPage() {
     },
     refetchInterval: 30_000,
   });
+
 
   const contas = useQuery({
     queryKey: ["contas_financeiras"],
@@ -250,7 +252,10 @@ function CapitalPage() {
   }, [bilhetes.data]);
 
   const c = consistencia.data;
-  const capitalTotal = c?.capital_total ?? 0;
+  const capitalBase = c?.capital_base ?? 0;
+  const circulacao = c?.capital_total ?? 0;
+  const divergencia = c?.diferenca ?? 0;
+  const integro = c?.consistente ?? false;
 
   return (
     <div className="space-y-6">
@@ -258,73 +263,128 @@ function CapitalPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Capital</h1>
           <p className="text-muted-foreground text-sm">
-            Rastreamento operacional do dinheiro da agência
+            Rastreamento operacional — o dinheiro circula, o lucro é separado
           </p>
         </div>
         {c &&
-          (c.consistente ? (
+          (integro ? (
             <Badge className="bg-success/15 text-success border border-success/40 gap-1.5 py-1.5 px-3">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Capital consistente
+              <CheckCircle2 className="h-3.5 w-3.5" /> Capital operacional íntegro
             </Badge>
           ) : (
             <Badge className="bg-destructive/15 text-destructive border border-destructive/40 gap-1.5 py-1.5 px-3">
               <AlertCircle className="h-3.5 w-3.5" />
-              Divergência: {formatCurrency(c.diferenca, currency)}
+              Divergência: {divergencia > 0 ? "+" : ""}
+              {formatCurrency(divergencia, currency)}
             </Badge>
           ))}
       </div>
 
-      {/* 1. Resumo do capital */}
-      <section className="space-y-3">
-        <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="p-6">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
-              Capital total rastreado
+      {/* Resumo operacional */}
+      <section className="grid gap-3 md:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Wallet className="h-4 w-4" /> Capital Base
             </div>
-            <div className="text-4xl font-bold mt-2 tabular-nums text-primary">
-              {formatCurrency(capitalTotal, currency)}
+            <div className="text-2xl font-bold mt-2 tabular-nums">
+              {formatCurrency(capitalBase, currency)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Caixa/Bancos + Companhias + Dívidas de clientes
+              Valor fixo definido em Configurações
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-3 md:grid-cols-4">
-          <ResumoCard
-            icon={<Wallet className="h-4 w-4" />}
-            label="Caixa/Bancos"
-            value={c?.capital_contas ?? 0}
-            currency={currency}
-            hint="Dinheiro disponível"
-          />
-          <ResumoCard
-            icon={<Plane className="h-4 w-4" />}
-            label="Companhias"
-            value={c?.capital_companhias ?? 0}
-            currency={currency}
-            hint="Dinheiro pré-pago"
-          />
-          <ResumoCard
-            icon={<Users className="h-4 w-4" />}
-            label="Dívidas"
-            value={c?.capital_dividas ?? 0}
-            currency={currency}
-            hint="Bilhetes não pagos"
-          />
-          <Card className="border-success/40 bg-success/5">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <PiggyBank className="h-4 w-4" /> Fundo de lucro
-              </div>
-              <div className="text-xl font-bold mt-2 tabular-nums text-success">
-                {formatCurrency(c?.fundo_lucro ?? 0, currency)}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">Separado do capital operacional</div>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <ArrowLeftRight className="h-4 w-4" /> Capital em Circulação
+            </div>
+            <div className="text-2xl font-bold mt-2 tabular-nums text-primary">
+              {formatCurrency(circulacao, currency)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Caixa/Bancos + Companhias + Dívidas
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          className={
+            integro
+              ? "border-success/40 bg-success/5"
+              : "border-destructive/40 bg-destructive/5"
+          }
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {integro ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}{" "}
+              Divergência
+            </div>
+            <div
+              className={`text-2xl font-bold mt-2 tabular-nums ${
+                integro ? "text-success" : "text-destructive"
+              }`}
+            >
+              {integro
+                ? formatCurrency(0, currency)
+                : `${divergencia > 0 ? "+" : ""}${formatCurrency(divergencia, currency)}`}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {integro
+                ? "Capital operacional íntegro"
+                : divergencia > 0
+                  ? "Sobra em circulação"
+                  : "Falta em circulação"}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-success/40 bg-success/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <PiggyBank className="h-4 w-4" /> Fundo de Lucro
+            </div>
+            <div className="text-2xl font-bold mt-2 tabular-nums text-success">
+              {formatCurrency(c?.fundo_lucro ?? 0, currency)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Separado do capital operacional
+            </div>
+          </CardContent>
+        </Card>
       </section>
+
+      {/* Repartição compacta da circulação */}
+      <section className="grid gap-3 md:grid-cols-3">
+        <ResumoCard
+          icon={<Wallet className="h-4 w-4" />}
+          label="Caixa/Bancos"
+          value={c?.capital_contas ?? 0}
+          currency={currency}
+          hint="Dinheiro disponível"
+        />
+        <ResumoCard
+          icon={<Plane className="h-4 w-4" />}
+          label="Companhias"
+          value={c?.capital_companhias ?? 0}
+          currency={currency}
+          hint="Dinheiro pré-pago"
+        />
+        <ResumoCard
+          icon={<Users className="h-4 w-4" />}
+          label="Dívidas"
+          value={c?.capital_dividas ?? 0}
+          currency={currency}
+          hint="Bilhetes não pagos"
+        />
+      </section>
+
 
       <Tabs defaultValue="contas" className="space-y-4">
         <TabsList>
@@ -336,29 +396,9 @@ function CapitalPage() {
           <TabsTrigger value="companhias">Companhias</TabsTrigger>
         </TabsList>
 
-        {/* Contas / Capital circulante */}
+        {/* Contas */}
         <TabsContent value="contas" className="space-y-4">
-          {(() => {
-            const capital = (contas.data ?? []).find((c: any) => c.sistema);
-            if (!capital) return null;
-            return (
-              <Card className="border-primary/40 bg-primary/5">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                    <Wallet className="h-4 w-4" /> Capital Circulante
-                  </div>
-                  <div className="text-3xl font-bold mt-2 tabular-nums text-primary">
-                    {formatCurrency(capital.saldo_inicial, currency)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2 max-w-xl">
-                    Este é o dinheiro fixo que financia as companhias. <b>Diminui</b> quando
-                    carrega uma companhia e <b>volta a subir</b> quando o cliente paga o bilhete
-                    (o custo regressa aqui e só a taxa da agência vai para o Fundo de Lucro).
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })()}
+
 
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">

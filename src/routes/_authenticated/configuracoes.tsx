@@ -39,6 +39,7 @@ function ConfiguracoesPage() {
   const [email, setEmail] = useState("");
   const [endereco, setEndereco] = useState("");
   const [nif, setNif] = useState("");
+  const [capitalBase, setCapitalBase] = useState<string>("0");
 
   useEffect(() => {
     if (settings) {
@@ -49,8 +50,10 @@ function ConfiguracoesPage() {
       setEmail((settings as any).email ?? "");
       setEndereco((settings as any).endereco ?? "");
       setNif((settings as any).nif ?? "");
+      setCapitalBase(String((settings as any).capital_base_operacional ?? 0));
     }
   }, [settings]);
+
 
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -79,7 +82,9 @@ function ConfiguracoesPage() {
         email: email || null,
         endereco: endereco || null,
         nif: nif || null,
+        capital_base_operacional: Number(capitalBase) || 0,
       };
+
       if (settings?.id) {
         const { error } = await supabase
           .from("agency_settings")
@@ -209,6 +214,26 @@ function ConfiguracoesPage() {
             <Label>NIF (opcional)</Label>
             <Input value={nif} onChange={(e) => setNif(e.target.value)} disabled={!isAdmin} />
           </div>
+
+          <div className="space-y-2 pt-4 border-t">
+            <Label>Capital base operacional</Label>
+            <Input
+              type="number"
+              min={0}
+              step="1"
+              value={capitalBase}
+              onChange={(e) => setCapitalBase(e.target.value)}
+              disabled={!isAdmin}
+              placeholder="0"
+            />
+            <p className="text-xs text-muted-foreground">
+              Valor fixo do capital operacional da agência ({currency}). O sistema alerta quando
+              Caixa/Bancos + Companhias + Dívidas divergirem deste valor. O lucro é rastreado
+              separadamente e não entra nesta conta.
+            </p>
+          </div>
+
+
 
           {isAdmin && (
             <Button onClick={() => save.mutate()} disabled={save.isPending}>

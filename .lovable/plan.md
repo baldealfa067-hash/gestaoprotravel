@@ -1,74 +1,90 @@
-## 1. Ampliar a tabela `agency_settings`
+## Objetivo
+Corrigir a lógica do módulo Capital para refletir a operação real da agência: o **capital operacional é FIXO**, apenas circula entre Caixas/Bancos → Companhias → Dívidas → e volta. O lucro (taxa) sai do fluxo e vai para o Fundo de Lucro.
 
-Adicionar colunas para identidade completa da agência:
+Sem tocar em: triggers de movimentação, RLS, autenticação, reservas, recibos, bilhetes, histórico.
 
-- `logo_url` (text) — Uplaod de imagem  (Supabase Storage)
-- `telefone` (text)
-- `email` (text)
-- `endereco` (text)
-- `nif` (text, opcional — útil em recibos)
+---
 
-Criar bucket público `agency-assets` no Storage para armazenar o logotipo, com policies de upload/update restritas a admins e leitura pública.
+## 1. Novo campo persistente: `capital_base_operacional`
 
-## 2. Página **Configurações** (`src/routes/_authenticated/configuracoes.tsx`)
+Migration `ALTER TABLE public.agency_settings ADD COLUMN capital_base_operacional NUMERIC NOT NULL DEFAULT 0;`
 
-Reformular o formulário conforme a imagem de referência:
+Fica em `agency_settings` (já existente, não cria tabela nova).
 
-- Nome da agência
-- Moeda principal
-- **Logótipo** — miniatura + input `type=file` (PNG/JPG/WEBP/SVG, máx 1 MB) com botão "Remover"
-- Telefone e Email (grid 2 colunas)
-- Endereço (textarea)
-- Botão "Guardar"
+---
 
-Só admins podem editar. Upload do logo vai para o bucket `agency-assets` e grava a URL em `logo_url`. Validação de tamanho/tipo no cliente.
+## 2. Corrigir a função `verificar_consistencia_capital`
 
-## 3. Impressão / PDF de bilhetes e recibos
-
-Criar componente `PrintableDocument` reutilizável com cabeçalho oficial:
+Substituir pela nova lógica (mantendo assinatura de colunas, apenas mudando o cálculo de `diferenca` e `consistente`):
 
 ```
-[LOGO]   Agência Travel GB
-         Praça retunda de antula
-         Tel: 957107795 · baldealfa067@gmail.com
-         NIF: ...
-─────────────────────────────────────────────
-BILHETE Nº ... / RECIBO Nº ...
-[corpo específico]
+capital_operacional_atual = capital_contas + capital_companhias + capital_dividas
+capital_base              = agency_settings.capital_base_operacional
+diferenca                 = capital_operacional_atual - capital_base
+consistente               = ABS(diferenca) < 1
 ```
 
-Dois documentos:
+- Fundo de lucro **NÃO** entra no cálculo de consistência (só é reportado).
+- `taxa_acumulada` deixa de ser referência de integridade (fica apenas informativa).
+- Adicionar coluna retornada `capital_base` para o frontend consumir.
 
-- **Bilhete emitido** — passageiro, PNR, rota, data viagem, classe, companhia, valor, taxa, total
-- **Recibo de pagamento** — cliente, bilhete associado, valor pago, forma de pagamento, data, assinatura
+Triggers de movimentação (`aplicar_movimentacao`) **não mudam** — já separam corretamente custo → conta e taxa → fundo_lucro no `pagamento_cliente`.
 
-Implementação:
+---
 
-- Componente React `<PrintableDocument variant="bilhete|recibo" data={...} />` já com estilos `@media print` (esconde nav/sidebar) e classes A4.
-- Hook `useAgencyBranding()` — reusa `useAgencySettings` e devolve nome, logo, contactos.
-- Botão **Imprimir / Baixar PDF** aparece em:
-  - Página `bilhetes.tsx`: em cada linha com status `emitido` ou `pago`
-  - Dialog de "Registar Pagamento" após sucesso: botão para gerar recibo
-- Ação: abre um dialog com o preview do documento + botões "Imprimir" (usa `window.print()` filtrando via CSS) e "Baixar PDF" (usa `html2pdf.js` ou `jspdf` + `html2canvas`).
+## 3. Página Configurações
 
-Dependência nova: `html2pdf.js` (bundla jspdf + html2canvas, funciona no browser sem Node APIs).
+Adicionar um campo numérico **"Capital base operacional"** na secção da agência (`src/routes/_authenticated/configuracoes.tsx`), salvando no upsert existente. Sem lógica nova de save.
 
-## 4. Fluxo do utilizador
+---
 
-1. Admin abre Configurações → preenche dados e faz upload do logotipo → Guardar.
-2. Ao emitir um bilhete ou registar pagamento, aparece botão **Imprimir/PDF**.
-3. Clica → abre preview com branding da agência → imprime ou baixa PDF.
+## 4. Redesenhar o topo da página Capital
 
-## Ficheiros afetados
+Substituir o cartão "Capital total rastreado" + os 4 cartões atuais por uma grelha limpa de 4 cartões:
 
-- `supabase/migrations/<novo>.sql` — colunas novas + bucket + policies
-- `src/routes/_authenticated/configuracoes.tsx` — formulário expandido
-- `src/hooks/use-agency-settings.ts` — sem mudança (tipos regenerados)
-- `src/components/printable/PrintableDocument.tsx` (novo)
-- `src/components/printable/PrintBilheteDialog.tsx` (novo)
-- `src/components/printable/PrintReciboDialog.tsx` (novo)
-- `src/routes/_authenticated/bilhetes.tsx` — botões Imprimir/Recibo
-- `src/styles.css` — regras `@media print`
-- `package.json` — adicionar `html2pdf.js`
+```text
+┌──────────────────────┬──────────────────────┬──────────────────────┬──────────────────────┐
+│ Capital Base         │ Capital em Circulação│ Divergência          │ Fundo de Lucro       │
+│ (valor fixo)         │ Caixa+Cias+Dívidas   │ Circulação − Base    │ (separado)           │
+└──────────────────────┴──────────────────────┴──────────────────────┴──────────────────────┘
+```
 
-Confirma para eu implementar?
+Regras visuais:
+- **Divergência = 0** → cartão verde "Capital operacional íntegro".
+- **Divergência ≠ 0** → cartão vermelho/âmbar com o valor e sinal (+ sobra / − falta).
+- Badge do topo passa a usar a nova regra (íntegro vs divergente).
+
+Abaixo, manter uma linha auxiliar (compacta) com a repartição do "Capital em Circulação": Caixa/Bancos · Companhias · Dívidas — mesmos números, só sem redundar como cartões grandes.
+
+Tabs (Contas, Receita, Distribuição, Movimentações, Dívidas, Companhias) e todos os diálogos existentes ficam iguais. O card "Capital Circulante" dentro da tab Contas é removido (fica redundante com o novo topo).
+
+---
+
+## 5. Ajustes no frontend
+
+- `useAgencySettings` já devolve o novo campo automaticamente após regen de types.
+- `capital.tsx`: consumir `c.capital_base` da RPC e calcular divergência no client se necessário (fallback), mas idealmente vem da RPC.
+- Remover uso de `taxa_acumulada` como sinal de consistência (mantém-se só na tab Receita se relevante).
+
+---
+
+## O que NÃO muda
+- Triggers, RLS, políticas, esquema dos bilhetes/reservas/movimentações.
+- Cálculo automático da taxa (6% mesmo continente / 30k económica / 50k executiva).
+- Fluxo de carregamento, emissão, pagamento e estorno.
+- Histórico imutável de `movimentacoes_capital`.
+
+---
+
+## Detalhes técnicos (para dev)
+
+**Migration única**:
+1. `ALTER TABLE agency_settings ADD COLUMN capital_base_operacional NUMERIC NOT NULL DEFAULT 0;`
+2. `CREATE OR REPLACE FUNCTION verificar_consistencia_capital()` retornando também `capital_base NUMERIC`, com nova fórmula de `diferenca` e `consistente` conforme acima.
+
+**Ficheiros a editar**:
+- `supabase/migrations/<novo>.sql` (schema + função)
+- `src/routes/_authenticated/configuracoes.tsx` (input de capital base)
+- `src/routes/_authenticated/capital.tsx` (novo header de 4 cartões, remover redundância)
+
+Sem alterações em `bilhetes.tsx`, `reservas.tsx`, hooks de alarme, print, ou triggers.
