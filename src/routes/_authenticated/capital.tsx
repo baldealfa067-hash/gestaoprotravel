@@ -319,250 +319,27 @@ function CapitalPage() {
         </Card>
       </section>
 
-      {/* Repartição compacta da circulação */}
-      <section className="grid gap-3 md:grid-cols-3">
-        <ResumoCard
-          icon={<Wallet className="h-4 w-4" />}
-          label="Caixa/Bancos"
-          value={c?.capital_contas ?? 0}
-          currency={currency}
-          hint="Dinheiro disponível"
+      {/* Ações rápidas */}
+      <div className="flex flex-wrap gap-2">
+        <AporteDialog contas={contas.data ?? []} />
+        <CarregarCompanhiaDialog
+          contas={contas.data ?? []}
+          companhias={companhias.data ?? []}
         />
-        <ResumoCard
-          icon={<Plane className="h-4 w-4" />}
-          label="Companhias"
-          value={c?.capital_companhias ?? 0}
-          currency={currency}
-          hint="Dinheiro pré-pago"
-        />
-        <ResumoCard
-          icon={<Users className="h-4 w-4" />}
-          label="Dívidas"
-          value={c?.capital_dividas ?? 0}
-          currency={currency}
-          hint="Bilhetes não pagos"
-        />
-      </section>
+        <NovaContaDialog />
+        <NovaCompanhiaDialog />
+      </div>
 
-
-      <Tabs defaultValue="contas" className="space-y-4">
+      <Tabs defaultValue="movimentacoes" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="contas">Contas</TabsTrigger>
-          <TabsTrigger value="receita">Receita</TabsTrigger>
-          <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
-          <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
+          <TabsTrigger value="movimentacoes">Movimento do capital</TabsTrigger>
           <TabsTrigger value="dividas">Dívidas</TabsTrigger>
           <TabsTrigger value="companhias">Companhias</TabsTrigger>
         </TabsList>
 
-        {/* Contas */}
-        <TabsContent value="contas" className="space-y-4">
-
-
-          <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle className="text-base">Caixas e Bancos</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Capital circulante disponível para carregar companhias e pagar despesas
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <AporteDialog contas={contas.data ?? []} />
-                <CarregarCompanhiaDialog
-                  contas={contas.data ?? []}
-                  companhias={companhias.data ?? []}
-                />
-                <NovaContaDialog />
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Saldo atual</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="w-[1%]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(contas.data ?? []).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
-                        Sem contas. Clique em <b>Nova conta</b> para criar uma Caixa ou Banco.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    (contas.data ?? []).map((k: any) => (
-                      <TableRow key={k.id} className={k.sistema ? "bg-primary/5" : ""}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {k.nome}
-                            {k.sistema && (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] bg-primary/10 text-primary border-primary/30"
-                              >
-                                Sistema
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{k.tipo === "caixa" ? "Caixa" : "Banco"}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatCurrency(k.saldo_inicial, currency)}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {k.ativa ? "Ativa" : "Inativa"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {!k.sistema && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Eliminar conta"
-                              onClick={async () => {
-                                if (!confirm(`Eliminar a conta "${k.nome}"? Esta ação não pode ser desfeita.`)) return;
-                                const { error } = await (supabase as any)
-                                  .from("contas_financeiras")
-                                  .delete()
-                                  .eq("id", k.id);
-                                if (error) {
-                                  // Fallback: se houver movimentações a referenciar, desativar em vez de eliminar
-                                  const { error: e2 } = await (supabase as any)
-                                    .from("contas_financeiras")
-                                    .update({ ativa: false })
-                                    .eq("id", k.id);
-                                  if (e2) {
-                                    toast.error("Não foi possível eliminar a conta");
-                                    return;
-                                  }
-                                  toast.success("Conta desativada (tem movimentações associadas)");
-                                } else {
-                                  toast.success("Conta eliminada");
-                                }
-                                qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
-                                qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-
-
-
-
-        {/* 2. Receita */}
-        <TabsContent value="receita" className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <TrendingUp className="h-4 w-4" /> Receita total em taxas
-                </div>
-                <div className="text-2xl font-bold mt-2 tabular-nums text-success">
-                  {formatCurrency(receita.total, currency)}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-xs text-muted-foreground">Este mês</div>
-                <div className="text-2xl font-bold mt-2 tabular-nums">
-                  {formatCurrency(receita.doMes, currency)}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <BreakdownCard title="Por vendedor" data={receita.porVendedor} currency={currency} />
-            <BreakdownCard title="Por rota" data={receita.porRota} currency={currency} />
-            <BreakdownCard title="Por continente" data={receita.porContinente} currency={currency} />
-            <BreakdownCard title="Por classe" data={receita.porClasse} currency={currency} />
-          </div>
-        </TabsContent>
-
-        {/* 4. Distribuição */}
-        <TabsContent value="distribuicao">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Distribuição do capital</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Observação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(contas.data ?? []).map((k: any) => (
-                    <TableRow key={k.id}>
-                      <TableCell>{k.tipo === "caixa" ? "Caixa" : "Banco"}</TableCell>
-                      <TableCell className="font-medium">{k.nome}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(k.saldo_inicial, currency)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {k.ativa ? "Ativa" : "Inativa"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {(companhias.data ?? []).map((c: any) => (
-                    <TableRow key={c.id}>
-                      <TableCell>Companhia</TableCell>
-                      <TableCell className="font-medium">{c.nome}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(c.saldo, currency)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">Pré-pago</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell>Clientes</TableCell>
-                    <TableCell className="font-medium">Devedores</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(dividas.total, currency)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {dividas.clientesDist} clientes
-                    </TableCell>
-                  </TableRow>
-                  <TableRow className="bg-success/5">
-                    <TableCell>Fundo</TableCell>
-                    <TableCell className="font-medium">Lucro reservado</TableCell>
-                    <TableCell className="text-right tabular-nums text-success">
-                      {formatCurrency(c?.fundo_lucro ?? 0, currency)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      Fora do capital operacional
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* 5. Movimentações */}
+        {/* Movimentações */}
         <TabsContent value="movimentacoes" className="space-y-4">
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Filtros</CardTitle>
