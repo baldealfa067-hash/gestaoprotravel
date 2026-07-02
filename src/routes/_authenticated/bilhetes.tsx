@@ -54,7 +54,10 @@ import {
   Users,
   CheckCircle2,
   CalendarClock,
+  Printer,
+  Receipt,
 } from "lucide-react";
+import { PrintDocDialog, type PrintDocType, type PrintDocData } from "@/components/print/PrintDocDialog";
 import { toast } from "sonner";
 
 
