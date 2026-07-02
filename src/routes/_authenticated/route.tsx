@@ -8,6 +8,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
+import { useReservasAlarm } from "@/hooks/use-reservas-alarm";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
