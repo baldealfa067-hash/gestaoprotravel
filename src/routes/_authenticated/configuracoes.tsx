@@ -39,6 +39,7 @@ function ConfiguracoesPage() {
   const [email, setEmail] = useState("");
   const [endereco, setEndereco] = useState("");
   const [nif, setNif] = useState("");
+  const [capitalBase, setCapitalBase] = useState<string>("0");
 
   useEffect(() => {
     if (settings) {
@@ -49,8 +50,10 @@ function ConfiguracoesPage() {
       setEmail((settings as any).email ?? "");
       setEndereco((settings as any).endereco ?? "");
       setNif((settings as any).nif ?? "");
+      setCapitalBase(String((settings as any).capital_base_operacional ?? 0));
     }
   }, [settings]);
+
 
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
