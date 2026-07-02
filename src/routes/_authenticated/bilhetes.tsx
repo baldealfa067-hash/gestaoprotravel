@@ -903,6 +903,9 @@ function BilhetesPage() {
                             <DropdownMenuItem onClick={() => setReservaTarget(b)}>
                               <CalendarClock className="h-4 w-4 mr-2" /> Criar reserva
                             </DropdownMenuItem>
+                          )}
+
+
 
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openPrint(b, "bilhete")}>
