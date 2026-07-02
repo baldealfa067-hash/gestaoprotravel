@@ -158,3 +158,28 @@
     color: var(--color-foreground);
   }
 }
+
+@media print {
+  body.print-mode-active * {
+    visibility: hidden !important;
+  }
+  body.print-mode-active .print-area,
+  body.print-mode-active .print-area * {
+    visibility: visible !important;
+  }
+  body.print-mode-active .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+  body.print-mode-active .no-print {
+    display: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+}

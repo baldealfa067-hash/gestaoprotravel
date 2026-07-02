@@ -54,7 +54,10 @@ import {
   Users,
   CheckCircle2,
   CalendarClock,
+  Printer,
+  Receipt,
 } from "lucide-react";
+import { PrintDocDialog, type PrintDocType, type PrintDocData } from "@/components/print/PrintDocDialog";
 import { toast } from "sonner";
 
 
@@ -230,6 +233,48 @@ function BilhetesPage() {
 
   // estado do diálogo "criar reserva a partir do bilhete"
   const [reservaTarget, setReservaTarget] = useState<any | null>(null);
+
+  // impressão
+  const [printState, setPrintState] = useState<{ type: PrintDocType; data: PrintDocData } | null>(null);
+
+  function openPrint(b: any, type: PrintDocType) {
+    const numero = (b.pnr && String(b.pnr).toUpperCase()) || String(b.id).slice(0, 8).toUpperCase();
+    const shared = {
+      numero,
+      cliente_nome: b.cliente?.full_name ?? null,
+      data_emissao: new Date(),
+      pnr: b.pnr ?? null,
+      companhia: b.companhia ?? null,
+      origem: b.origem ?? null,
+      destino: b.destino ?? null,
+      data_viagem: b.data_viagem ?? null,
+      classe: b.classe ?? null,
+      vendedor: b.vendedor?.full_name ?? null,
+    };
+    if (type === "bilhete") {
+      setPrintState({
+        type,
+        data: {
+          ...shared,
+          custo: Number(b.custo ?? 0),
+          taxa: Number(b.taxa_agencia ?? 0),
+          total: Number(b.valor_cobrado ?? 0),
+        },
+      });
+    } else {
+      setPrintState({
+        type,
+        data: {
+          ...shared,
+          valor_pago: Number(b.valor_cobrado ?? 0),
+          forma_pagamento: "—",
+          bilhete_ref: numero,
+          observacao: b.observacoes ?? null,
+        },
+      });
+    }
+  }
+
 
 
   // bilhetes já emitidos (para não emitir 2x)
@@ -860,6 +905,19 @@ function BilhetesPage() {
                             </DropdownMenuItem>
                           )}
 
+
+
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => openPrint(b, "bilhete")}>
+                            <Printer className="h-4 w-4 mr-2" /> Imprimir bilhete
+                          </DropdownMenuItem>
+                          {b.pago && (
+                            <DropdownMenuItem onClick={() => openPrint(b, "recibo")}>
+                              <Receipt className="h-4 w-4 mr-2" /> Recibo de pagamento
+                            </DropdownMenuItem>
+                          )}
+
+
                           <DropdownMenuItem
                             onClick={() => {
                               setEditingId(b.id);
@@ -1056,6 +1114,13 @@ function BilhetesPage() {
           qc.invalidateQueries({ queryKey: ["reservas-por-bilhete"] });
           qc.invalidateQueries({ queryKey: ["reservas"] });
         }}
+      />
+
+      <PrintDocDialog
+        open={!!printState}
+        onClose={() => setPrintState(null)}
+        type={printState?.type ?? "bilhete"}
+        data={printState?.data ?? null}
       />
     </div>
   );
