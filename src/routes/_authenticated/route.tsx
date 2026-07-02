@@ -27,6 +27,7 @@ function AuthenticatedLayout() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
   }, []);
+  useReservasAlarm();
 
   return (
     <SidebarProvider>
