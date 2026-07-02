@@ -254,6 +254,74 @@ function ConfiguracoesPage() {
           )}
         </CardContent>
       </Card>
+
+      {isAdmin && <ResetDataCard />}
     </div>
   );
 }
+
+function ResetDataCard() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const reset = useServerFn(resetAllData);
+  const mut = useMutation({
+    mutationFn: async () => await reset({ data: { confirm: "RESET" } }),
+    onSuccess: () => {
+      toast.success("Todos os dados foram eliminados");
+      setOpen(false);
+      setConfirm("");
+      qc.invalidateQueries();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card className="border-destructive/40">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-destructive">
+          <AlertTriangle className="h-5 w-5" /> Zona de perigo
+        </CardTitle>
+        <CardDescription>
+          Elimina permanentemente bilhetes, reservas, clientes, companhias, contas,
+          movimentações e zera o fundo de lucro. Utilizadores, funções e configurações
+          da agência mantêm-se.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button variant="destructive" onClick={() => setOpen(true)}>
+          <AlertTriangle className="h-4 w-4 mr-2" /> Reset de dados
+        </Button>
+      </CardContent>
+
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setConfirm(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Confirmar reset total</DialogTitle>
+            <DialogDescription>
+              Esta ação é <b>irreversível</b>. Todos os bilhetes, reservas, clientes,
+              companhias, contas e movimentações serão eliminados. Escreva <b>RESET</b> para confirmar.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="RESET"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={confirm !== "RESET" || mut.isPending}
+              onClick={() => mut.mutate()}
+            >
+              {mut.isPending ? "A eliminar..." : "Eliminar tudo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
