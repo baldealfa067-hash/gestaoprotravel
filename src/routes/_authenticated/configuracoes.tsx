@@ -235,7 +235,7 @@ function ConfiguracoesPage() {
           </div>
 
           <div className="space-y-2 pt-4 border-t">
-            <Label>Capital base operacional</Label>
+            <Label>Capital inicial (aporte)</Label>
             <Input
               type="number"
               min={0}
@@ -246,11 +246,13 @@ function ConfiguracoesPage() {
               placeholder="0"
             />
             <p className="text-xs text-muted-foreground">
-              Valor fixo do capital operacional da agência ({currency}). O sistema alerta quando
-              Caixa/Bancos + Companhias + Dívidas divergirem deste valor. O lucro é rastreado
-              separadamente e não entra nesta conta.
+              Valor total ({currency}) que colocas no Capital Circulante. Ao guardar, o
+              sistema ajusta o saldo em caixa para este valor. Depois, carregar companhias
+              faz o Capital Circulante diminuir e pagamentos de clientes fazem-no voltar
+              a subir. O lucro (taxas) cresce à parte, no Fundo de Lucro.
             </p>
           </div>
+
 
 
 
