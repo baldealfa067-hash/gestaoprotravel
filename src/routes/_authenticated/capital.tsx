@@ -190,45 +190,8 @@ function CapitalPage() {
     });
   }, [movs.data, movFilters]);
 
-  // Receita da agência
-  const receita = useMemo(() => {
-    const list = (bilhetes.data ?? []).filter((b: any) => b.status !== "cancelado");
-    const total = list.reduce((s: number, b: any) => s + Number(b.taxa_agencia ?? b.lucro ?? 0), 0);
-    const mesInicio = startOfMonth(new Date()).getTime();
-    const doMes = list
-      .filter((b: any) => new Date(b.created_at).getTime() >= mesInicio)
-      .reduce((s: number, b: any) => s + Number(b.taxa_agencia ?? b.lucro ?? 0), 0);
-    const porVendedor = new Map<string, number>();
-    const porRota = new Map<string, number>();
-    const porContinente = new Map<string, number>();
-    const porClasse = new Map<string, number>();
-    list.forEach((b: any) => {
-      const v = Number(b.taxa_agencia ?? b.lucro ?? 0);
-      const vend = vendedorMap[b.vendedor_id] ?? "—";
-      porVendedor.set(vend, (porVendedor.get(vend) ?? 0) + v);
-      const rota = `${b.origem} → ${b.destino}`;
-      porRota.set(rota, (porRota.get(rota) ?? 0) + v);
-      const key =
-        b.continente_origem && b.continente_destino
-          ? `${CONTINENTE_LABEL[b.continente_origem]} → ${CONTINENTE_LABEL[b.continente_destino]}`
-          : "Não classificado";
-      porContinente.set(key, (porContinente.get(key) ?? 0) + v);
-      const cls = b.classe === "executiva" ? "Executiva" : "Económica";
-      porClasse.set(cls, (porClasse.get(cls) ?? 0) + v);
-    });
-    const sort = (m: Map<string, number>) =>
-      Array.from(m.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6);
-    return {
-      total,
-      doMes,
-      porVendedor: sort(porVendedor),
-      porRota: sort(porRota),
-      porContinente: sort(porContinente),
-      porClasse: Array.from(porClasse.entries()),
-    };
-  }, [bilhetes.data, vendedorMap]);
+
+
 
   // Dívidas
   const dividas = useMemo(() => {
