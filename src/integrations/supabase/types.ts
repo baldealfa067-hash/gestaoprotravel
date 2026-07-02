@@ -501,6 +501,7 @@ export type Database = {
       verificar_consistencia_capital: {
         Args: never
         Returns: {
+          capital_base: number
           capital_companhias: number
           capital_contas: number
           capital_dividas: number
