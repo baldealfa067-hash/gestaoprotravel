@@ -71,19 +71,25 @@ function ConfiguracoesPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("agency_settings")
-        .update({
-          agency_name: name,
-          currency,
-          logo_url: logoUrl,
-          telefone: telefone || null,
-          email: email || null,
-          endereco: endereco || null,
-          nif: nif || null,
-        } as any)
-        .eq("id", settings!.id);
-      if (error) throw error;
+      const payload: any = {
+        agency_name: name,
+        currency,
+        logo_url: logoUrl,
+        telefone: telefone || null,
+        email: email || null,
+        endereco: endereco || null,
+        nif: nif || null,
+      };
+      if (settings?.id) {
+        const { error } = await supabase
+          .from("agency_settings")
+          .update(payload)
+          .eq("id", settings.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("agency_settings").insert(payload);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Configurações atualizadas");
