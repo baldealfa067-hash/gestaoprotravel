@@ -23,6 +23,8 @@ import { RequireAdmin } from "@/components/require-admin";
 import { Upload, X, AlertTriangle } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { resetAllData } from "@/lib/reset-data.functions";
+import { CompanhiasEditor } from "@/components/companhias-editor";
+
 
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
