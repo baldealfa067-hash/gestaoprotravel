@@ -85,7 +85,10 @@ export function CompanhiasEditor() {
       toast.success("Companhias guardadas");
       qc.invalidateQueries({ queryKey: ["companhias-editor"] });
       qc.invalidateQueries({ queryKey: ["companhias-options"] });
+      qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
+      qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["capital-carregamentos"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

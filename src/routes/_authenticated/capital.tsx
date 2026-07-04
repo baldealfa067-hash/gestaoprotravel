@@ -712,6 +712,7 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
     toast.success("Companhia carregada");
     qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
     qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
+    qc.invalidateQueries({ queryKey: ["companhias-editor"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
     qc.invalidateQueries({ queryKey: ["capital-carregamentos"] });
     setForm({ conta_origem_id: capitalId, companhia_id: "", valor: "", descricao: "" });
