@@ -478,7 +478,7 @@ function BilhetesPage() {
           </p>
         </div>
         <Dialog
-          open={open}
+          open={open && !!editingId}
           onOpenChange={(o) => {
             setOpen(o);
             if (!o) {
@@ -487,11 +487,10 @@ function BilhetesPage() {
             }
           }}
         >
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" /> Novo bilhete
-            </Button>
-          </DialogTrigger>
+          <Button variant="outline" disabled title="Bilhetes agora são emitidos a partir de uma reserva">
+            <Plus className="h-4 w-4 mr-2" /> Novo bilhete → via Reservas
+          </Button>
+
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingId ? "Editar bilhete" : "Nova venda de bilhete"}</DialogTitle>
