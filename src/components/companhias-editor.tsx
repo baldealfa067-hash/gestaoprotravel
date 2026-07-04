@@ -198,9 +198,16 @@ export function CompanhiasEditor() {
                     className="font-mono uppercase"
                   />
                 </TableCell>
-                <TableCell className="text-right tabular-nums font-semibold">
-                  {formatCurrency(r.saldo, currency)}
+                <TableCell className="text-right">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={r.saldo}
+                    onChange={(e) => update(idx, { saldo: Number(e.target.value) })}
+                    className="text-right tabular-nums font-semibold"
+                  />
                 </TableCell>
+
                 <TableCell>
                   <input
                     type="checkbox"
