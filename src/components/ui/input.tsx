@@ -14,11 +14,13 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         ref={ref}
         onFocus={(e) => {
           if (type === "number") {
-            // Select the current value so typing replaces the zero instead of appending
-            e.currentTarget.select();
+            // Defer so the click's mouseup doesn't clear the selection
+            const el = e.currentTarget;
+            setTimeout(() => el.select(), 0);
           }
           onFocus?.(e);
         }}
+
         {...props}
       />
     );
