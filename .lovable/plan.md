@@ -1,78 +1,44 @@
-## O que vou mudar
+## O bug
 
-Três coisas, na ordem que pediste:
+Verifiquei a base de dados e a causa é grave mas simples: **não existe nenhum trigger na base**. As funções (`aplicar_movimentacao`, `bilhete_debita_companhia`, `bilhete_auto_taxa`, `sync_reserva_on_bilhete_emitido`, `set_updated_at`) foram criadas mas nunca foram ligadas às tabelas.
 
----
+Resultado prático:
+- Ao recarregar uma companhia, o registo entra em `movimentacoes_capital` mas **ninguém desconta do Capital Circulante nem soma ao saldo da companhia** — é exatamente o que estás a ver.
+- Ao emitir um bilhete, a taxa da agência não é calculada e o saldo da companhia não é descontado.
+- Ao registar pagamento do cliente, o Fundo de Lucro não é atualizado e o bilhete não é marcado como pago.
+- Os `updated_at` não se atualizam.
 
-### 1. Companhias como "ficheiro Excel"
+(O saldo da companhia que viste a mudar deve ter sido via a planilha editável que fizemos há pouco, não pelo carregamento.)
 
-Página **Configurações → Companhias** (ou botão na página Capital) passa a ter uma tabela editável estilo planilha:
+## O que vou fazer
 
-- Colunas: **Nome**, **Continente**, **Saldo atual** (só leitura), **Ações**
-- Botão **+ Adicionar linha** cria uma companhia nova em branco
-- Editas o nome direto na célula, escolhes continente, clicas **Guardar**
-- Podes eliminar linhas (só se saldo = 0)
-- Nenhum carregamento é feito aqui — isto é só o cadastro
+Uma migração única que **cria todos os triggers em falta**, ligando as funções que já existem às tabelas certas:
 
-**Recarregar companhia** continua no botão de ação rápida do Capital: escolhes a companhia da lista, escreves o valor, confirma → sai do Capital Circulante e entra no saldo da companhia (já funciona assim, não mexo).
+1. `movimentacoes_capital` → `AFTER INSERT` executa `aplicar_movimentacao()`
+   → passa a descontar do Circulante e somar à companhia no recarregamento (bug atual)
+   → passa a debitar companhia na emissão, creditar contas no pagamento, etc.
 
----
+2. `bilhetes` → `BEFORE INSERT OR UPDATE` executa `bilhete_auto_taxa()`
+   → calcula taxa da agência e `valor_cobrado` automaticamente.
 
-### 2. Venda de bilhete desconta da companhia, não do circulante
+3. `bilhetes` → `AFTER INSERT OR UPDATE` executa `bilhete_debita_companhia()`
+   → desconta o custo do saldo da companhia quando o bilhete fica `emitido`, devolve se for cancelado.
 
-Hoje o custo do bilhete não sai de lado nenhum na emissão — só a taxa da agência entra no Fundo de Lucro quando o cliente paga. O saldo da companhia só desce se houver um movimento `emissao_bilhete` manual.
+4. `bilhetes` → `AFTER UPDATE` executa `sync_reserva_on_bilhete_emitido()`
+   → marca a reserva como `emitida` quando o bilhete é emitido.
 
-Vou mudar o **trigger `bilhete_auto_taxa`** (ou criar um novo trigger `AFTER INSERT/UPDATE` em bilhetes) para que, quando o bilhete passa a `emitido`:
+5. `BEFORE UPDATE` com `set_updated_at()` nas tabelas com coluna `updated_at`
+   (bilhetes, reservas, clientes, companhias_aereas, contas_financeiras, agency_settings, profiles, movimentacoes_capital, fundo_lucro).
 
-- Cria automaticamente um movimento `emissao_bilhete` com `companhia_id = bilhete.companhia_id` e `valor = custo`
-- O trigger `aplicar_movimentacao` já desconta esse valor do saldo da companhia
-- Se o bilhete for cancelado, devolve o valor à companhia
+## O que NÃO vou fazer
 
-No formulário de bilhete o vendedor **já seleciona a companhia** — não muda nada na UI, só passa a ter efeito no saldo.
+- Não vou tocar em dados existentes — só ligar triggers. Recarregamentos antigos que não desceram o Circulante ficam como estão (a menos que peças para regularizar).
+- Não vou mexer nas funções em si, só criar os triggers.
+- Não vou mexer em código do frontend — o problema é 100% base de dados.
 
-**Capital Circulante não é tocado na emissão.** Só é tocado quando:
-- Cliente paga (entra dinheiro no caixa)
-- Alguém carrega a companhia (sai do caixa)
+## Como confirmar depois
 
----
-
-### 3. Fluxo Cliente → Reserva → Bilhete → Emitir
-
-Hoje o fluxo prático é: criar cliente → criar bilhete → (opcional) criar reserva.
-
-Vou inverter:
-
-**Novo fluxo em 4 passos:**
-
-1. **Cliente** — já existe, sem mudança
-2. **Reserva** (obrigatória antes do bilhete) — página Reservas ganha um botão "Nova reserva" que só pede: cliente, PNR, origem, destino, companhia, data limite. **Sem custo, sem taxa, sem preço.**
-3. **Emitir bilhete a partir da reserva** — na linha da reserva ativa aparece botão **"Emitir bilhete"**. Abre um dialog que já traz cliente/companhia/rota da reserva, e o vendedor preenche só o **custo** e a **classe**. O sistema calcula taxa automaticamente, cria o bilhete, marca a reserva como `emitida` e desconta o custo da companhia (passo 2).
-4. **Registar pagamento** — igual ao que já existe (na página Bilhetes ou Capital).
-
-**Página Bilhetes** deixa de ter botão "Novo bilhete" direto. Passa a ser só uma lista/histórico + pagamentos. Bilhete só nasce via "Emitir da reserva".
-
----
-
-## O que NÃO vou mudar
-
-- Lucro / Fundo de Lucro (continua a entrar quando cliente paga)
-- RLS, autenticação, ajustes manuais com PIN
-- Estrutura da tabela `bilhetes` — só o trigger que gera o movimento na emissão
-- Impressão de recibos / PDFs
-
----
-
-## Ficheiros afetados
-
-**Migração** (1 nova):
-- Novo trigger em `bilhetes` para gerar `emissao_bilhete` automaticamente na transição para `emitido` e reverter no cancelamento
-
-**Frontend:**
-- `src/routes/_authenticated/configuracoes.tsx` — tabela editável de companhias (ou nova sub-rota `capital/companhias`)
-- `src/routes/_authenticated/reservas.tsx` — botão "Nova reserva" simplificado + botão "Emitir bilhete" por linha
-- `src/routes/_authenticated/bilhetes.tsx` — remove "Novo bilhete", mantém lista + pagamento
-- Novo dialog `EmitirBilheteDialog` reutilizando dados da reserva
-
-## Pergunta antes de começar
-
-Confirma só uma coisa: os bilhetes **antigos já emitidos** (que existem hoje sem terem descontado da companhia) — deixo como estão (histórico) ou fazes questão que eu regularize o saldo das companhias para trás?
+Fazer um carregamento de teste e verificar que:
+- O saldo do Capital Circulante desce no valor exato.
+- O saldo da companhia sobe no mesmo valor.
+- Aparece o movimento na aba de movimentações.
