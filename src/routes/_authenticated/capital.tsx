@@ -98,7 +98,8 @@ function CapitalPage() {
   });
 
   const c = consistencia.data;
-  const emCaixa = Number(c?.capital_contas ?? 0);
+  const circulanteConta = (contas.data ?? []).find((x: any) => x.sistema);
+  const emCaixa = Number(circulanteConta?.saldo_inicial ?? 0);
   const emCompanhias = Number(c?.capital_companhias ?? 0);
   const aReceber = Number(c?.capital_dividas ?? 0);
   const fundoLucro = Number(c?.fundo_lucro ?? 0);
