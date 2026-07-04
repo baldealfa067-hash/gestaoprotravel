@@ -63,6 +63,7 @@ function ConfiguracoesPage() {
       setEndereco((settings as any).endereco ?? "");
       setNif((settings as any).nif ?? "");
       setCapitalBase(String((settings as any).capital_base_operacional ?? 0));
+      setAdminPin(String((settings as any).admin_pin ?? ""));
     }
   }, [settings]);
 
