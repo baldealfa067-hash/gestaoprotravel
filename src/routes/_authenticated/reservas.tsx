@@ -699,6 +699,115 @@ function ReservasPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Dialog: Emitir bilhete a partir da reserva */}
+      <Dialog open={!!emitTarget} onOpenChange={(v) => !v && setEmitTarget(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Emitir bilhete — Reserva {emitTarget?.pnr}</DialogTitle>
+          </DialogHeader>
+          {emitTarget && (
+            <div className="space-y-3">
+              <div className="rounded border bg-muted/40 p-3 text-sm space-y-1">
+                <div><span className="text-muted-foreground">Cliente:</span> {emitTarget.cliente?.full_name ?? "—"}</div>
+                <div><span className="text-muted-foreground">Rota:</span> {emitTarget.origem} → {emitTarget.destino}</div>
+                <div><span className="text-muted-foreground">Viagem:</span> {formatDate(emitTarget.data_viagem)}</div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Companhia (donde sai o dinheiro)</Label>
+                <Select
+                  value={emitForm.companhia_id}
+                  onValueChange={(v) => setEmitForm({ ...emitForm, companhia_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar companhia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companhias.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome} — saldo: {formatCurrency(c.saldo, currency)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {companhias.length === 0 && (
+                  <p className="text-xs text-warning">
+                    Nenhuma companhia cadastrada. Adicione em Configurações.
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Continente origem</Label>
+                  <Select
+                    value={emitForm.continente_origem}
+                    onValueChange={(v) => setEmitForm({ ...emitForm, continente_origem: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CONTINENTES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Continente destino</Label>
+                  <Select
+                    value={emitForm.continente_destino}
+                    onValueChange={(v) => setEmitForm({ ...emitForm, continente_destino: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CONTINENTES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Classe</Label>
+                  <Select
+                    value={emitForm.classe}
+                    onValueChange={(v) => setEmitForm({ ...emitForm, classe: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="economica">Económica</SelectItem>
+                      <SelectItem value="executiva">Executiva</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Custo do bilhete</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={emitForm.custo}
+                    onChange={(e) => setEmitForm({ ...emitForm, custo: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                A taxa da agência é calculada automaticamente. Ao emitir, o custo é debitado
+                do saldo da companhia selecionada.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmitTarget(null)}>Cancelar</Button>
+            <Button onClick={() => emitir.mutate()} disabled={emitir.isPending}>
+              <Send className="h-4 w-4 mr-2" />
+              {emitir.isPending ? "A emitir…" : "Emitir bilhete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
