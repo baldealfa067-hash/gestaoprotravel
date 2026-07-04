@@ -51,6 +51,7 @@ function ConfiguracoesPage() {
   const [endereco, setEndereco] = useState("");
   const [nif, setNif] = useState("");
   const [capitalBase, setCapitalBase] = useState<string>("0");
+  const [adminPin, setAdminPin] = useState<string>("");
 
   useEffect(() => {
     if (settings) {
