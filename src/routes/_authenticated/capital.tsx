@@ -36,6 +36,9 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
+import { CompanhiasEditor } from "@/components/companhias-editor";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/capital")({
   component: () => (
@@ -165,7 +168,186 @@ function CapitalPage() {
         O <b>Total geral</b> é calculado automaticamente e não pode ser editado. Correções
         manuais geram sempre um movimento no histórico com PIN, motivo e responsável.
       </p>
+
+      {/* Companhias — cadastro estilo Excel */}
+      <CompanhiasEditor />
+
+      {/* Movimentações — dívidas e carregamentos */}
+      <DividasSection currency={currency} />
+      <CarregamentosSection currency={currency} />
     </div>
+  );
+}
+
+function DividasSection({ currency }: { currency: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["capital-dividas-lista"],
+    queryFn: async () => {
+      const { data: bilhetes, error } = await (supabase as any)
+        .from("bilhetes")
+        .select("id, valor_cobrado, pago, status, created_at, cliente:cliente_id(id, full_name)")
+        .in("status", ["emitido", "pendente", "pedido_criado"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const ids = (bilhetes ?? []).map((b: any) => b.id);
+      let pagosPorBilhete: Record<string, number> = {};
+      if (ids.length) {
+        const { data: movs } = await (supabase as any)
+          .from("movimentacoes_capital")
+          .select("bilhete_id, valor")
+          .eq("tipo", "pagamento_cliente")
+          .in("bilhete_id", ids);
+        for (const m of movs ?? []) {
+          pagosPorBilhete[m.bilhete_id] = (pagosPorBilhete[m.bilhete_id] ?? 0) + Number(m.valor);
+        }
+      }
+      return (bilhetes ?? []).map((b: any) => {
+        const pago = pagosPorBilhete[b.id] ?? 0;
+        const total = Number(b.valor_cobrado ?? 0);
+        const restante = Math.max(0, total - pago);
+        let situacao: "pago" | "parcial" | "nao_pago" = "nao_pago";
+        if (b.pago || restante < 0.01) situacao = "pago";
+        else if (pago > 0) situacao = "parcial";
+        return { ...b, pago_valor: pago, restante, situacao };
+      });
+    },
+    refetchInterval: 30_000,
+  });
+
+  const rows = data ?? [];
+  const totais = {
+    total: rows.reduce((s: number, r: any) => s + Number(r.valor_cobrado ?? 0), 0),
+    devido: rows.reduce((s: number, r: any) => s + r.restante, 0),
+    pagos: rows.filter((r: any) => r.situacao === "pago").length,
+    parciais: rows.filter((r: any) => r.situacao === "parcial").length,
+    naoPagos: rows.filter((r: any) => r.situacao === "nao_pago").length,
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">Dívidas de clientes</h2>
+            <p className="text-xs text-muted-foreground">
+              Quem já pagou, quem pagou pela metade e quem ainda deve.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <span>Total faturado: <b className="tabular-nums">{formatCurrency(totais.total, currency)}</b></span>
+            <span className="text-warning">A receber: <b className="tabular-nums">{formatCurrency(totais.devido, currency)}</b></span>
+            <span className="text-success">Pagos: <b>{totais.pagos}</b></span>
+            <span className="text-primary">Parciais: <b>{totais.parciais}</b></span>
+            <span className="text-destructive">Não pagos: <b>{totais.naoPagos}</b></span>
+          </div>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">Pago</TableHead>
+              <TableHead className="text-right">Em dívida</TableHead>
+              <TableHead>Situação</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">A carregar…</TableCell></TableRow>
+            )}
+            {!isLoading && rows.length === 0 && (
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sem bilhetes em aberto.</TableCell></TableRow>
+            )}
+            {rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">{r.cliente?.full_name ?? "—"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.valor_cobrado ?? 0), currency)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatCurrency(r.pago_valor, currency)}</TableCell>
+                <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(r.restante, currency)}</TableCell>
+                <TableCell>
+                  {r.situacao === "pago" && <Badge className="bg-success text-success-foreground">Pago</Badge>}
+                  {r.situacao === "parcial" && <Badge className="bg-primary/15 text-primary border border-primary/40">Pagou pela metade</Badge>}
+                  {r.situacao === "nao_pago" && <Badge variant="destructive">Não pagou</Badge>}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CarregamentosSection({ currency }: { currency: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["capital-carregamentos"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("movimentacoes_capital")
+        .select("id, valor, created_at, observacao, companhia:companhia_id(nome, codigo)")
+        .eq("tipo", "carregamento_companhia")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 30_000,
+  });
+
+  const rows = data ?? [];
+  const total = rows.reduce((s: number, r: any) => s + Number(r.valor ?? 0), 0);
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">Carregamentos das companhias</h2>
+            <p className="text-xs text-muted-foreground">
+              Quanto foi carregado em cada companhia e quando.
+            </p>
+          </div>
+          <div className="text-xs">
+            Total carregado (últimos 100): <b className="tabular-nums">{formatCurrency(total, currency)}</b>
+          </div>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead>
+              <TableHead>Companhia</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+              <TableHead>Descrição</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">A carregar…</TableCell></TableRow>
+            )}
+            {!isLoading && rows.length === 0 && (
+              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Ainda não há carregamentos.</TableCell></TableRow>
+            )}
+            {rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell className="text-xs text-muted-foreground">
+                  {new Date(r.created_at).toLocaleString()}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {r.companhia?.nome ?? "—"}
+                  {r.companhia?.codigo && <span className="ml-1 text-xs text-muted-foreground">({r.companhia.codigo})</span>}
+                </TableCell>
+                <TableCell className="text-right tabular-nums font-semibold text-primary">
+                  {formatCurrency(Number(r.valor ?? 0), currency)}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">{r.observacao ?? ""}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 
