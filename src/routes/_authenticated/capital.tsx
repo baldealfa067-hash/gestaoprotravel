@@ -162,7 +162,6 @@ function CapitalPage() {
           companhias={companhias.data ?? []}
         />
         <NovaContaDialog />
-        <NovaCompanhiaDialog />
       </div>
 
       <p className="text-xs text-muted-foreground">
