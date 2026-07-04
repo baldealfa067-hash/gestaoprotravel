@@ -51,7 +51,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatCurrency } from "@/lib/format";
 import {
   ALERT_BADGE,
   ALERT_LABEL,
@@ -61,6 +61,9 @@ import {
   formatTimeLeft,
   type ReservaStatus,
 } from "@/lib/reservas";
+import { CONTINENTES } from "@/lib/capital";
+import { useAgencySettings } from "@/hooks/use-agency-settings";
+
 
 export const Route = createFileRoute("/_authenticated/reservas")({
   component: ReservasPage,
