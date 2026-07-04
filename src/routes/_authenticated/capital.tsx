@@ -39,6 +39,7 @@ import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { CompanhiasEditor } from "@/components/companhias-editor";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_authenticated/capital")({
   component: () => (
