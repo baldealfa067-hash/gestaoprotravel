@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       agency_settings: {
         Row: {
+          admin_pin: string | null
           agency_name: string
           capital_base_operacional: number
           created_at: string
@@ -29,6 +30,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_pin?: string | null
           agency_name?: string
           capital_base_operacional?: number
           created_at?: string
@@ -42,6 +44,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_pin?: string | null
           agency_name?: string
           capital_base_operacional?: number
           created_at?: string
@@ -481,6 +484,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ajustar_capital: {
+        Args: {
+          _motivo: string
+          _novo_valor: number
+          _pin: string
+          _target: string
+        }
+        Returns: undefined
+      }
       calcular_taxa_agencia: {
         Args: {
           _classe: Database["public"]["Enums"]["bilhete_classe"]

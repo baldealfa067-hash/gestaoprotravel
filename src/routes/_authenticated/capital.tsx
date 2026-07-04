@@ -3,8 +3,7 @@ import { RequireAdmin } from "@/components/require-admin";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -25,35 +24,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Wallet,
   PiggyBank,
   Plane,
   Users,
-  ArrowUpRight,
+  Layers,
+  Plus,
+  Pencil,
   ArrowDownLeft,
-  ArrowLeftRight,
 } from "lucide-react";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
-import {
-  DIR_COLOR,
-  MOV_TIPO_LABEL,
-  MOV_TIPO_OPTIONS,
-  debtStatus,
-  movDirection,
-} from "@/lib/capital";
-import { differenceInCalendarDays } from "date-fns";
-
 
 export const Route = createFileRoute("/_authenticated/capital")({
   component: () => (
@@ -63,10 +45,11 @@ export const Route = createFileRoute("/_authenticated/capital")({
   ),
 });
 
+type Target = "caixa" | "companhias" | "lucro";
+
 function CapitalPage() {
   const { data: settings } = useAgencySettings();
   const currency = settings?.currency ?? "AOA";
-  const qc = useQueryClient();
 
   const consistencia = useQuery({
     queryKey: ["capital-consistencia"],
@@ -77,17 +60,11 @@ function CapitalPage() {
         capital_contas: number;
         capital_companhias: number;
         capital_dividas: number;
-        capital_total: number;
-        capital_base: number;
         fundo_lucro: number;
-        taxa_acumulada: number;
-        diferenca: number;
-        consistente: boolean;
       } | null;
     },
     refetchInterval: 30_000,
   });
-
 
   const contas = useQuery({
     queryKey: ["contas_financeiras"],
@@ -97,7 +74,6 @@ function CapitalPage() {
         .select("*")
         .order("sistema", { ascending: false })
         .order("nome");
-
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -115,185 +91,66 @@ function CapitalPage() {
     },
   });
 
-  const bilhetes = useQuery({
-    queryKey: ["capital-bilhetes"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bilhetes")
-        .select(
-          "id, created_at, custo, valor_cobrado, taxa_agencia, lucro, continente_origem, continente_destino, classe, origem, destino, status, pago, vendedor_id, cliente_id, cliente:clientes(full_name)",
-        );
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-  });
-
-  const vendedores = useQuery({
-    queryKey: ["capital-vendedores"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id, full_name");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-  });
-
-  const [movFilters, setMovFilters] = useState({
-    from: "",
-    to: "",
-    tipo: "all",
-    conta: "all",
-    companhia: "all",
-    vendedor: "all",
-  });
-
-  const movs = useQuery({
-    queryKey: ["movimentacoes"],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("movimentacoes_capital")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-  });
-
-  const vendedorMap = useMemo(
-    () => Object.fromEntries((vendedores.data ?? []).map((p: any) => [p.id, p.full_name])),
-    [vendedores.data],
-  );
-  const contaMap = useMemo(
-    () => Object.fromEntries((contas.data ?? []).map((c: any) => [c.id, c.nome])),
-    [contas.data],
-  );
-  const cieMap = useMemo(
-    () => Object.fromEntries((companhias.data ?? []).map((c: any) => [c.id, c.nome])),
-    [companhias.data],
-  );
-
-  const filteredMovs = useMemo(() => {
-    return (movs.data ?? []).filter((m: any) => {
-      const d = new Date(m.created_at);
-      if (movFilters.from && d < new Date(movFilters.from)) return false;
-      if (movFilters.to && d > new Date(new Date(movFilters.to).getTime() + 86400000)) return false;
-      if (movFilters.tipo !== "all" && m.tipo !== movFilters.tipo) return false;
-      if (
-        movFilters.conta !== "all" &&
-        m.conta_origem_id !== movFilters.conta &&
-        m.conta_destino_id !== movFilters.conta
-      )
-        return false;
-      if (movFilters.companhia !== "all" && m.companhia_id !== movFilters.companhia) return false;
-      if (movFilters.vendedor !== "all" && m.responsavel_id !== movFilters.vendedor) return false;
-      return true;
-    });
-  }, [movs.data, movFilters]);
-
-
-
-
-  // Dívidas
-  const dividas = useMemo(() => {
-    const now = Date.now();
-    const list = (bilhetes.data ?? [])
-      .filter(
-        (b: any) => !b.pago && ["emitido", "pendente", "pedido_criado"].includes(b.status),
-      )
-      .map((b: any) => {
-        const dias = differenceInCalendarDays(now, new Date(b.created_at));
-        return { ...b, dias };
-      })
-      .sort((a: any, b: any) => b.dias - a.dias);
-    const total = list.reduce((s: number, b: any) => s + Number(b.valor_cobrado ?? 0), 0);
-    const clientesDist = new Set(list.map((b: any) => b.cliente_id)).size;
-    return { list, total, clientesDist };
-  }, [bilhetes.data]);
-
   const c = consistencia.data;
-  const emCaixa = c?.capital_contas ?? 0;
-  const emCompanhias = c?.capital_companhias ?? 0;
-  const aReceber = c?.capital_dividas ?? 0;
-  const fundoLucro = c?.fundo_lucro ?? 0;
+  const emCaixa = Number(c?.capital_contas ?? 0);
+  const emCompanhias = Number(c?.capital_companhias ?? 0);
+  const aReceber = Number(c?.capital_dividas ?? 0);
+  const fundoLucro = Number(c?.fundo_lucro ?? 0);
+  const totalGeral = emCaixa + emCompanhias + aReceber;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Capital</h1>
         <p className="text-muted-foreground text-sm">
-          Circulação do dinheiro: caixa → companhias → dívidas → caixa. O lucro é separado.
+          Onde está o dinheiro, agora.
         </p>
       </div>
 
-      {/* Resumo operacional */}
-      <section className="grid gap-3 md:grid-cols-4">
-        <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Wallet className="h-4 w-4" /> Capital Circulante
-            </div>
-            <div className="text-2xl font-bold mt-2 tabular-nums text-primary">
-              {formatCurrency(emCaixa, currency)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Dinheiro disponível em caixa / bancos
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Plane className="h-4 w-4" /> Em Companhias
-            </div>
-            <div className="text-2xl font-bold mt-2 tabular-nums">
-              {formatCurrency(emCompanhias, currency)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Saldo carregado nas cias aéreas
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-warning/40 bg-warning/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Users className="h-4 w-4" /> A Receber
-            </div>
-            <div className="text-2xl font-bold mt-2 tabular-nums text-warning">
-              {formatCurrency(aReceber, currency)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Bilhetes emitidos ainda por pagar
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-success/40 bg-success/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <PiggyBank className="h-4 w-4" /> Fundo de Lucro
-            </div>
-            <div className="text-2xl font-bold mt-2 tabular-nums text-success">
-              {formatCurrency(fundoLucro, currency)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Taxas acumuladas (separado)
-            </div>
-          </CardContent>
-        </Card>
+      {/* 5 cards principais */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <MetricCard
+          icon={<Users className="h-4 w-4" />}
+          label="Clientes a dever"
+          value={aReceber}
+          currency={currency}
+          tone="warning"
+        />
+        <MetricCard
+          icon={<Wallet className="h-4 w-4" />}
+          label="Disponível (banco / caixa)"
+          value={emCaixa}
+          currency={currency}
+          tone="primary"
+          onEdit="caixa"
+        />
+        <MetricCard
+          icon={<Plane className="h-4 w-4" />}
+          label="Carregado nas companhias"
+          value={emCompanhias}
+          currency={currency}
+          tone="neutral"
+          onEdit="companhias"
+        />
+        <MetricCard
+          icon={<Layers className="h-4 w-4" />}
+          label="Total geral"
+          value={totalGeral}
+          currency={currency}
+          tone="strong"
+          hint="Banco + Companhias + Dívidas"
+        />
+        <MetricCard
+          icon={<PiggyBank className="h-4 w-4" />}
+          label="Lucro por taxas"
+          value={fundoLucro}
+          currency={currency}
+          tone="success"
+          onEdit="lucro"
+        />
       </section>
 
-      <div className="text-xs text-muted-foreground bg-muted/40 border rounded-md px-3 py-2">
-        <b>Total operacional:</b>{" "}
-        {formatCurrency(emCaixa + emCompanhias + aReceber, currency)} — é o dinheiro
-        que circula entre caixa, companhias e clientes. Não muda ao carregar cias ou emitir
-        bilhetes; só sobe com aportes e desce com despesas. O lucro cresce à parte.
-      </div>
-
-
-
-      {/* Ações rápidas */}
+      {/* Ações rápidas (operação diária) */}
       <div className="flex flex-wrap gap-2">
         <AporteDialog contas={contas.data ?? []} />
         <CarregarCompanhiaDialog
@@ -304,346 +161,186 @@ function CapitalPage() {
         <NovaCompanhiaDialog />
       </div>
 
-      <Tabs defaultValue="movimentacoes" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="movimentacoes">Movimento do capital</TabsTrigger>
-          <TabsTrigger value="dividas">Dívidas</TabsTrigger>
-          <TabsTrigger value="companhias">Companhias</TabsTrigger>
-        </TabsList>
-
-        {/* Movimentações */}
-        <TabsContent value="movimentacoes" className="space-y-4">
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Filtros</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-6">
-              <div className="space-y-1.5">
-                <Label className="text-xs">De</Label>
-                <Input
-                  type="date"
-                  value={movFilters.from}
-                  onChange={(e) => setMovFilters({ ...movFilters, from: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Até</Label>
-                <Input
-                  type="date"
-                  value={movFilters.to}
-                  onChange={(e) => setMovFilters({ ...movFilters, to: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Tipo</Label>
-                <Select
-                  value={movFilters.tipo}
-                  onValueChange={(v) => setMovFilters({ ...movFilters, tipo: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {MOV_TIPO_OPTIONS.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {MOV_TIPO_LABEL[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Conta</Label>
-                <Select
-                  value={movFilters.conta}
-                  onValueChange={(v) => setMovFilters({ ...movFilters, conta: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    {(contas.data ?? []).map((k: any) => (
-                      <SelectItem key={k.id} value={k.id}>
-                        {k.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Companhia</Label>
-                <Select
-                  value={movFilters.companhia}
-                  onValueChange={(v) => setMovFilters({ ...movFilters, companhia: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    {(companhias.data ?? []).map((k: any) => (
-                      <SelectItem key={k.id} value={k.id}>
-                        {k.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Responsável</Label>
-                <Select
-                  value={movFilters.vendedor}
-                  onValueChange={(v) => setMovFilters({ ...movFilters, vendedor: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {(vendedores.data ?? []).map((p: any) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Movimentações ({filteredMovs.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Origem</TableHead>
-                    <TableHead>Destino</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Ref.</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMovs.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                        Nenhuma movimentação registada
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredMovs.map((m: any) => {
-                      const dir = movDirection(m.tipo);
-                      const Icon =
-                        dir === "in"
-                          ? ArrowDownLeft
-                          : dir === "out"
-                          ? ArrowUpRight
-                          : ArrowLeftRight;
-                      const origem =
-                        contaMap[m.conta_origem_id] ?? cieMap[m.companhia_id] ?? "—";
-                      const destino =
-                        contaMap[m.conta_destino_id] ??
-                        (m.tipo === "carregamento_companhia" ? cieMap[m.companhia_id] : null) ??
-                        (m.tipo === "transferencia_lucro" ? "Fundo de lucro" : "—");
-                      return (
-                        <TableRow key={m.id}>
-                          <TableCell className="text-xs">{formatDateTime(m.created_at)}</TableCell>
-                          <TableCell>
-                            <span className={`inline-flex items-center gap-1.5 ${DIR_COLOR[dir]}`}>
-                              <Icon className="h-3.5 w-3.5" />
-                              <span className="text-xs">{MOV_TIPO_LABEL[m.tipo]}</span>
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-xs">{origem}</TableCell>
-                          <TableCell className="text-xs">{destino}</TableCell>
-                          <TableCell
-                            className={`text-right tabular-nums font-medium ${DIR_COLOR[dir]}`}
-                          >
-                            {formatCurrency(m.valor, currency)}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {vendedorMap[m.responsavel_id] ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {m.referencia ?? "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* 6. Dívidas */}
-        <TabsContent value="dividas" className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-xs text-muted-foreground">Total em dívida</div>
-                <div className="text-2xl font-bold mt-2 tabular-nums text-destructive">
-                  {formatCurrency(dividas.total, currency)}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-xs text-muted-foreground">Clientes devedores</div>
-                <div className="text-2xl font-bold mt-2">{dividas.clientesDist}</div>
-              </CardContent>
-            </Card>
-          </div>
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Rota</TableHead>
-                    <TableHead>Emitido</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-right">Dias</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dividas.list.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        Nenhuma dívida em aberto
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    dividas.list.map((b: any) => {
-                      const s = debtStatus(b.dias);
-                      return (
-                        <TableRow key={b.id}>
-                          <TableCell className="font-medium">
-                            {b.cliente?.full_name ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {b.origem} → {b.destino}
-                          </TableCell>
-                          <TableCell className="text-xs">{formatDate(b.created_at)}</TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {formatCurrency(b.valor_cobrado, currency)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">{b.dias}</TableCell>
-                          <TableCell>
-                            <Badge className={s.className} variant="outline">
-                              {s.label}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* 7. Companhias */}
-        <TabsContent value="companhias">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base">Companhias aéreas</CardTitle>
-              <NovaCompanhiaDialog />
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Companhia</TableHead>
-                    <TableHead>Código</TableHead>
-                    <TableHead className="text-right">Saldo</TableHead>
-                    <TableHead>Último carregamento</TableHead>
-                    <TableHead>Último consumo</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(companhias.data ?? []).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        Nenhuma companhia registada. Clique em "Nova companhia" para começar.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    (companhias.data ?? []).map((c: any) => {
-                      const baixo =
-                        Number(c.alerta_minimo ?? 0) > 0 &&
-                        Number(c.saldo) <= Number(c.alerta_minimo);
-                      return (
-                        <TableRow key={c.id}>
-                          <TableCell className="font-medium">{c.nome}</TableCell>
-                          <TableCell className="text-xs uppercase text-muted-foreground">
-                            {c.codigo ?? "—"}
-                          </TableCell>
-                          <TableCell
-                            className={`text-right tabular-nums ${
-                              baixo ? "text-destructive font-semibold" : ""
-                            }`}
-                          >
-                            {formatCurrency(c.saldo, currency)}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {c.ultimo_carregamento ? formatDateTime(c.ultimo_carregamento) : "—"}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {c.ultimo_consumo ? formatDateTime(c.ultimo_consumo) : "—"}
-                          </TableCell>
-                          <TableCell>
-                            {baixo ? (
-                              <Badge className="bg-destructive/15 text-destructive border border-destructive/40">
-                                Saldo baixo
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">OK</Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <p className="text-xs text-muted-foreground">
+        O <b>Total geral</b> é calculado automaticamente e não pode ser editado. Correções
+        manuais geram sempre um movimento no histórico com PIN, motivo e responsável.
+      </p>
     </div>
   );
 }
 
+function MetricCard({
+  icon,
+  label,
+  value,
+  currency,
+  tone,
+  hint,
+  onEdit,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  currency: string;
+  tone: "primary" | "success" | "warning" | "neutral" | "strong";
+  hint?: string;
+  onEdit?: Target;
+}) {
+  const toneClass = {
+    primary: "border-primary/40 bg-primary/5 text-primary",
+    success: "border-success/40 bg-success/5 text-success",
+    warning: "border-warning/40 bg-warning/5 text-warning",
+    neutral: "",
+    strong: "border-foreground/20 bg-muted/40",
+  }[tone];
+  const valueTone = {
+    primary: "text-primary",
+    success: "text-success",
+    warning: "text-warning",
+    neutral: "",
+    strong: "",
+  }[tone];
 
+  return (
+    <Card className={toneClass}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {icon} {label}
+          </div>
+          {onEdit && <CorrigirButton target={onEdit} currentValue={value} label={label} />}
+        </div>
+        <div className={`text-2xl font-bold mt-2 tabular-nums ${valueTone}`}>
+          {formatCurrency(value, currency)}
+        </div>
+        {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
+      </CardContent>
+    </Card>
+  );
+}
 
+function CorrigirButton({
+  target,
+  currentValue,
+  label,
+}: {
+  target: Target;
+  currentValue: number;
+  label: string;
+}) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [novo, setNovo] = useState("");
+  const [pin, setPin] = useState("");
+  const [motivo, setMotivo] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setNovo(String(currentValue));
+      setPin("");
+      setMotivo("");
+    }
+  }, [open, currentValue]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = Number(novo);
+    if (Number.isNaN(v) || v < 0) return toast.error("Valor inválido");
+    if (!pin) return toast.error("Informe o PIN de admin");
+    if (motivo.trim().length < 3) return toast.error("Motivo muito curto");
+    setSaving(true);
+    const { error } = await (supabase as any).rpc("ajustar_capital", {
+      _target: target,
+      _novo_valor: v,
+      _pin: pin,
+      _motivo: motivo.trim(),
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Valor corrigido");
+    qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+    qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+    qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
+    qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+          title="Corrigir valor"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Corrigir: {label}</DialogTitle>
+          <DialogDescription>
+            Gera um movimento auditável. O PIN é configurado em Configurações.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1">
+            <Label>Novo valor</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              value={novo}
+              onChange={(e) => setNovo(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>PIN do admin</Label>
+            <Input
+              type="password"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="••••"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Motivo</Label>
+            <Input
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ex: reconciliação com extrato"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "A guardar..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================================================
+   Diálogos operacionais (mantidos do fluxo existente)
+   ============================================================ */
 
 function NovaCompanhiaDialog() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    nome: "",
-    codigo: "",
-    saldo: "0",
-    alerta_minimo: "0",
-  });
-
-  const reset = () =>
-    setForm({ nome: "", codigo: "", saldo: "0", alerta_minimo: "0" });
+  const [form, setForm] = useState({ nome: "", codigo: "", saldo: "0", alerta_minimo: "0" });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome.trim()) {
-      toast.error("Informe o nome da companhia");
-      return;
-    }
+    if (!form.nome.trim()) return toast.error("Informe o nome");
     setSaving(true);
     const { error } = await (supabase as any).from("companhias_aereas").insert({
       nome: form.nome.trim(),
@@ -653,21 +350,18 @@ function NovaCompanhiaDialog() {
       ativa: true,
     });
     setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    if (error) return toast.error(error.message);
     toast.success("Companhia criada");
     qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
-    reset();
+    setForm({ nome: "", codigo: "", saldo: "0", alerta_minimo: "0" });
     setOpen(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">
+        <Button size="sm" variant="outline">
           <Plus className="h-4 w-4" /> Nova companhia
         </Button>
       </DialogTrigger>
@@ -678,49 +372,25 @@ function NovaCompanhiaDialog() {
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
             <Label>Nome *</Label>
-            <Input
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              placeholder="TAAG, TAP, Air France..."
-              autoFocus
-            />
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} autoFocus />
           </div>
           <div className="space-y-1">
             <Label>Código IATA</Label>
-            <Input
-              value={form.codigo}
-              onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
-              placeholder="DT, TP, AF"
-              maxLength={4}
-            />
+            <Input value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })} maxLength={4} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Saldo inicial</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.saldo}
-                onChange={(e) => setForm({ ...form, saldo: e.target.value })}
-              />
+              <Input type="number" step="0.01" value={form.saldo} onChange={(e) => setForm({ ...form, saldo: e.target.value })} />
             </div>
             <div className="space-y-1">
               <Label>Alerta mínimo</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.alerta_minimo}
-                onChange={(e) => setForm({ ...form, alerta_minimo: e.target.value })}
-              />
+              <Input type="number" step="0.01" value={form.alerta_minimo} onChange={(e) => setForm({ ...form, alerta_minimo: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "A guardar..." : "Criar companhia"}
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? "A guardar..." : "Criar"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -763,7 +433,7 @@ function NovaContaDialog() {
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
             <Label>Nome *</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="BAI Principal, Caixa Escritório..." autoFocus />
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -783,7 +453,7 @@ function NovaContaDialog() {
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "A guardar..." : "Criar conta"}</Button>
+            <Button type="submit" disabled={saving}>{saving ? "A guardar..." : "Criar"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -802,8 +472,7 @@ function AporteDialog({ contas }: { contas: any[] }) {
     if (open && !form.conta_destino_id && capitalId) {
       setForm((f) => ({ ...f, conta_destino_id: capitalId }));
     }
-  }, [open, capitalId]);
-
+  }, [open, capitalId, form.conta_destino_id]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -823,7 +492,6 @@ function AporteDialog({ contas }: { contas: any[] }) {
     if (error) return toast.error(error.message);
     toast.success("Aporte registado");
     qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
-    qc.invalidateQueries({ queryKey: ["movimentacoes"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
     setForm({ conta_destino_id: capitalId, valor: "", descricao: "" });
     setOpen(false);
@@ -833,25 +501,22 @@ function AporteDialog({ contas }: { contas: any[] }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground">
-          <ArrowDownLeft className="h-4 w-4" /> Aporte de capital
+          <ArrowDownLeft className="h-4 w-4" /> Aporte
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Aporte de capital</DialogTitle>
-          <p className="text-sm text-muted-foreground">Entrada de dinheiro no capital circulante.</p>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
             <Label>Conta destino *</Label>
             <Select value={form.conta_destino_id} onValueChange={(v) => setForm({ ...form, conta_destino_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecionar Caixa/Banco" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
               <SelectContent>
                 {contas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.sistema ? "★ " : ""}
-                    {c.nome} ({c.tipo === "caixa" ? "Caixa" : "Banco"})
-                    {c.sistema ? " — Capital Circulante" : ""}
+                    {c.sistema ? "★ " : ""}{c.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -863,11 +528,11 @@ function AporteDialog({ contas }: { contas: any[] }) {
           </div>
           <div className="space-y-1">
             <Label>Descrição</Label>
-            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Depósito inicial, reforço mensal..." />
+            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "A registar..." : "Registar aporte"}</Button>
+            <Button type="submit" disabled={saving}>{saving ? "..." : "Registar"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -886,8 +551,7 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
     if (open && !form.conta_origem_id && capitalId) {
       setForm((f) => ({ ...f, conta_origem_id: capitalId }));
     }
-  }, [open, capitalId]);
-
+  }, [open, capitalId, form.conta_origem_id]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -896,9 +560,7 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
     const valor = Number(form.valor);
     if (!valor || valor <= 0) return toast.error("Valor inválido");
     const conta = contas.find((c) => c.id === form.conta_origem_id);
-    if (conta && Number(conta.saldo_inicial) < valor) {
-      return toast.error("Saldo insuficiente na conta origem");
-    }
+    if (conta && Number(conta.saldo_inicial) < valor) return toast.error("Saldo insuficiente");
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await (supabase as any).from("movimentacoes_capital").insert({
@@ -914,46 +576,40 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
     toast.success("Companhia carregada");
     qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
     qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
-    qc.invalidateQueries({ queryKey: ["movimentacoes"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
     setForm({ conta_origem_id: capitalId, companhia_id: "", valor: "", descricao: "" });
     setOpen(false);
   };
 
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary">
-          <ArrowLeftRight className="h-4 w-4" /> Carregar companhia
+        <Button size="sm" variant="outline">
+          <Plane className="h-4 w-4" /> Carregar companhia
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Carregar companhia aérea</DialogTitle>
-          <p className="text-sm text-muted-foreground">Transfere capital da conta para o saldo pré-pago da companhia.</p>
+          <DialogTitle>Carregar companhia</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
             <Label>Conta origem *</Label>
             <Select value={form.conta_origem_id} onValueChange={(v) => setForm({ ...form, conta_origem_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Caixa/Banco" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
               <SelectContent>
                 {contas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.sistema ? "★ " : ""}
-                    {c.nome} — saldo {Number(c.saldo_inicial).toLocaleString()}
-                    {c.sistema ? " (Capital Circulante)" : ""}
+                    {c.sistema ? "★ " : ""}{c.nome} — {formatCurrency(c.saldo_inicial, "")}
                   </SelectItem>
                 ))}
-
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
             <Label>Companhia *</Label>
             <Select value={form.companhia_id} onValueChange={(v) => setForm({ ...form, companhia_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Companhia" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
               <SelectContent>
                 {companhias.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
@@ -963,7 +619,7 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
           </div>
           <div className="space-y-1">
             <Label>Valor *</Label>
-            <Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+            <Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} autoFocus />
           </div>
           <div className="space-y-1">
             <Label>Descrição</Label>
@@ -971,7 +627,7 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "A carregar..." : "Carregar"}</Button>
+            <Button type="submit" disabled={saving}>{saving ? "..." : "Registar"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

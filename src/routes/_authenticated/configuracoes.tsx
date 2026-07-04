@@ -51,6 +51,7 @@ function ConfiguracoesPage() {
   const [endereco, setEndereco] = useState("");
   const [nif, setNif] = useState("");
   const [capitalBase, setCapitalBase] = useState<string>("0");
+  const [adminPin, setAdminPin] = useState<string>("");
 
   useEffect(() => {
     if (settings) {
@@ -62,6 +63,7 @@ function ConfiguracoesPage() {
       setEndereco((settings as any).endereco ?? "");
       setNif((settings as any).nif ?? "");
       setCapitalBase(String((settings as any).capital_base_operacional ?? 0));
+      setAdminPin(String((settings as any).admin_pin ?? ""));
     }
   }, [settings]);
 
@@ -94,6 +96,7 @@ function ConfiguracoesPage() {
         endereco: endereco || null,
         nif: nif || null,
         capital_base_operacional: Number(capitalBase) || 0,
+        admin_pin: adminPin || null,
       };
 
       if (settings?.id) {
@@ -252,6 +255,23 @@ function ConfiguracoesPage() {
               a subir. O lucro (taxas) cresce à parte, no Fundo de Lucro.
             </p>
           </div>
+
+          <div className="space-y-2 pt-4 border-t">
+            <Label>PIN de administrador (correções de capital)</Label>
+            <Input
+              type="password"
+              value={adminPin}
+              onChange={(e) => setAdminPin(e.target.value)}
+              disabled={!isAdmin}
+              placeholder="Ex: 4 a 8 dígitos"
+              maxLength={16}
+            />
+            <p className="text-xs text-muted-foreground">
+              Exigido na página Capital ao usar "Corrigir Valor". Guarde em local seguro.
+            </p>
+          </div>
+
+
 
 
 
