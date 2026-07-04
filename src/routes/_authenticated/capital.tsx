@@ -162,7 +162,6 @@ function CapitalPage() {
           companhias={companhias.data ?? []}
         />
         <NovaContaDialog />
-        <NovaCompanhiaDialog />
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -526,71 +525,6 @@ function CorrigirButton({
    Diálogos operacionais (mantidos do fluxo existente)
    ============================================================ */
 
-function NovaCompanhiaDialog() {
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ nome: "", codigo: "", saldo: "0", alerta_minimo: "0" });
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.nome.trim()) return toast.error("Informe o nome");
-    setSaving(true);
-    const { error } = await (supabase as any).from("companhias_aereas").insert({
-      nome: form.nome.trim(),
-      codigo: form.codigo.trim() || null,
-      saldo: Number(form.saldo) || 0,
-      alerta_minimo: Number(form.alerta_minimo) || 0,
-      ativa: true,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Companhia criada");
-    qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
-    qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
-    setForm({ nome: "", codigo: "", saldo: "0", alerta_minimo: "0" });
-    setOpen(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Plus className="h-4 w-4" /> Nova companhia
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nova companhia aérea</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-3">
-          <div className="space-y-1">
-            <Label>Nome *</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} autoFocus />
-          </div>
-          <div className="space-y-1">
-            <Label>Código IATA</Label>
-            <Input value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })} maxLength={4} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Saldo inicial</Label>
-              <Input type="number" step="0.01" value={form.saldo} onChange={(e) => setForm({ ...form, saldo: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label>Alerta mínimo</Label>
-              <Input type="number" step="0.01" value={form.alerta_minimo} onChange={(e) => setForm({ ...form, alerta_minimo: e.target.value })} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "A guardar..." : "Criar"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function NovaContaDialog() {
   const qc = useQueryClient();
