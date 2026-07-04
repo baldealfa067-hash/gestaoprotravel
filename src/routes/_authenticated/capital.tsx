@@ -680,7 +680,8 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const capitalId = useMemo(() => (contas.find((c: any) => c.sistema)?.id ?? ""), [contas]);
+  const capitalConta = useMemo(() => contas.find((c: any) => c.sistema), [contas]);
+  const capitalId = capitalConta?.id ?? "";
   const [form, setForm] = useState({ conta_origem_id: "", companhia_id: "", valor: "", descricao: "" });
 
   useEffect(() => {
@@ -691,18 +692,17 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.conta_origem_id) return toast.error("Escolha a conta origem");
+    if (!capitalId) return toast.error("Conta Capital Circulante não encontrada");
     if (!form.companhia_id) return toast.error("Escolha a companhia");
     const valor = Number(form.valor);
     if (!valor || valor <= 0) return toast.error("Valor inválido");
-    const conta = contas.find((c) => c.id === form.conta_origem_id);
-    if (conta && Number(conta.saldo_inicial) < valor) return toast.error("Saldo insuficiente");
+    if (capitalConta && Number(capitalConta.saldo_inicial) < valor) return toast.error("Saldo insuficiente no Capital Circulante");
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await (supabase as any).from("movimentacoes_capital").insert({
       tipo: "carregamento_companhia",
       valor,
-      conta_origem_id: form.conta_origem_id,
+      conta_origem_id: capitalId,
       companhia_id: form.companhia_id,
       observacao: form.descricao.trim() || "Carregamento de companhia",
       responsavel_id: user?.id,
@@ -713,6 +713,7 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
     qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
     qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
     qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+    qc.invalidateQueries({ queryKey: ["capital-carregamentos"] });
     setForm({ conta_origem_id: capitalId, companhia_id: "", valor: "", descricao: "" });
     setOpen(false);
   };
@@ -730,17 +731,12 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
-            <Label>Conta origem *</Label>
-            <Select value={form.conta_origem_id} onValueChange={(v) => setForm({ ...form, conta_origem_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-              <SelectContent>
-                {contas.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.sistema ? "★ " : ""}{c.nome} — {formatCurrency(c.saldo_inicial, "")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Origem</Label>
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
+              {capitalConta
+                ? `${capitalConta.nome} — ${formatCurrency(Number(capitalConta.saldo_inicial ?? 0), "")}`
+                : "Capital Circulante não encontrado"}
+            </div>
           </div>
           <div className="space-y-1">
             <Label>Companhia *</Label>
