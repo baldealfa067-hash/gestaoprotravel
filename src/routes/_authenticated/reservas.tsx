@@ -200,6 +200,97 @@ function ReservasPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ===== Emitir bilhete a partir da reserva =====
+  const { data: settings } = useAgencySettings();
+  const currency = settings?.currency ?? "AOA";
+  const { data: companhias = [] } = useQuery({
+    queryKey: ["companhias-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companhias_aereas")
+        .select("id, nome, saldo, ativa")
+        .eq("ativa", true)
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+  const [emitTarget, setEmitTarget] = useState<any | null>(null);
+  const [emitForm, setEmitForm] = useState({
+    companhia_id: "",
+    custo: 0,
+    continente_origem: "africa" as "africa" | "europa" | "america" | "asia" | "oceania",
+    continente_destino: "africa" as "africa" | "europa" | "america" | "asia" | "oceania",
+    classe: "economica" as "economica" | "executiva",
+  });
+
+  const emitir = useMutation({
+    mutationFn: async () => {
+      if (!emitTarget) throw new Error("Reserva inválida");
+      if (!emitForm.companhia_id) throw new Error("Selecione a companhia");
+      if (emitForm.custo <= 0) throw new Error("Custo deve ser maior que zero");
+      const cia = companhias.find((c: any) => c.id === emitForm.companhia_id);
+      if (cia && Number(cia.saldo) < emitForm.custo) {
+        throw new Error(
+          `Saldo da ${cia.nome} (${formatCurrency(cia.saldo, currency)}) é menor que o custo do bilhete.`,
+        );
+      }
+      const { data: u } = await supabase.auth.getUser();
+      const { data: novo, error } = await supabase
+        .from("bilhetes")
+        .insert({
+          cliente_id: emitTarget.cliente_id,
+          vendedor_id: u.user!.id,
+          companhia_id: emitForm.companhia_id,
+          companhia: cia?.nome ?? emitTarget.companhia,
+          continente_origem: emitForm.continente_origem,
+          continente_destino: emitForm.continente_destino,
+          classe: emitForm.classe,
+          origem: emitTarget.origem,
+          destino: emitTarget.destino,
+          data_viagem: emitTarget.data_viagem,
+          pnr: emitTarget.pnr,
+          custo: emitForm.custo,
+          status: "emitido",
+          pago: false,
+        } as any)
+        .select("id")
+        .single();
+      if (error) throw error;
+      const { error: e2 } = await supabase
+        .from("reservas" as any)
+        .update({ status: "emitida", bilhete_id: (novo as any).id })
+        .eq("id", emitTarget.id);
+      if (e2) throw e2;
+    },
+    onSuccess: () => {
+      toast.success("Bilhete emitido — companhia debitada");
+      qc.invalidateQueries({ queryKey: ["reservas"] });
+      qc.invalidateQueries({ queryKey: ["reservas-alertas"] });
+      qc.invalidateQueries({ queryKey: ["bilhetes"] });
+      qc.invalidateQueries({ queryKey: ["companhias-options"] });
+      qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      setEmitTarget(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const openEmitir = (r: any) => {
+    const matchCia = companhias.find(
+      (c: any) => c.nome.toLowerCase() === String(r.companhia ?? "").toLowerCase(),
+    );
+    setEmitForm({
+      companhia_id: matchCia?.id ?? "",
+      custo: 0,
+      continente_origem: (r.continente_origem ?? "africa") as any,
+      continente_destino: (r.continente_destino ?? "africa") as any,
+      classe: (r.classe ?? "economica") as any,
+    });
+    setEmitTarget(r);
+  };
+
+
+
   const filtered = useMemo(() => {
     const now = Date.now();
     return reservas.filter((r: any) => {
