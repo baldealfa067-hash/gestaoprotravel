@@ -1,22 +1,23 @@
-## O que vou fazer
+## Objetivo
 
-1. **Eliminar a conta ECOBANK** da base de dados (DELETE em `contas_financeiras` onde `nome = 'ECOBANK'` e `sistema = false`).
+Garantir que, quando uma agência/companhia é recarregada, o valor sai automaticamente do **Disponível (banco / caixa)** / **Capital Circulante** e entra em **Carregado nas companhias**.
 
-2. **Ajustar o card "Disponível (banco / caixa)"** na página `/capital` para mostrar apenas o saldo da conta de sistema (Capital Circulante), em vez da soma de todas as contas ativas.
+## Plano
 
-3. **Adicionar aba "Contas"** dentro da página `/capital` (usando o `Tabs` já existente ou uma nova secção), com:
-   - Lista de todas as contas (`contas_financeiras`) — nome, tipo, saldo, ativa.
-   - Botão "Nova conta" (reaproveita o `NovaContaDialog` que já existe).
-   - Ações por linha: editar saldo/nome, ativar/inativar, eliminar (bloqueando eliminação da conta de sistema `Capital Circulante`).
+1. **Corrigir o backend de movimentos**
+   - Manter a lógica de `carregamento_companhia`: subtrair da conta origem e somar na companhia.
+   - Remover o trigger duplicado em `movimentacoes_capital`, porque hoje existem dois triggers chamando a mesma função (`trg_aplicar_mov` e `trg_aplicar_movimentacao`).
+   - Deixar apenas um trigger ativo para evitar lançamentos duplicados ou comportamento inconsistente.
 
-## O que NÃO vou fazer
+2. **Garantir que o botão “Carregar companhia” usa o Capital Circulante**
+   - O formulário já seleciona a conta de sistema como origem por padrão.
+   - Vou ajustar para ficar mais explícito que o dinheiro sai do **Capital Circulante**.
+   - Após salvar, a tela vai atualizar imediatamente as consultas de contas, companhias e consistência.
 
-- Não mexo em triggers nem em `sincronizar_capital_base` — o Circulante continua a ser gerido pelo fluxo atual.
-- Não altero a fórmula de consistência de capital (`verificar_consistencia_capital` continua a somar todas as contas ativas — isto é do lado do backend e é o comportamento correcto para a auditoria).
-- Não mexo em movimentações históricas.
+3. **Verificar o saldo real após a correção**
+   - Conferir no banco se o saldo da conta circulante e o saldo das companhias estão coerentes.
+   - Se houver recarregamento antigo que não foi descontado corretamente, preparar uma correção pontual para alinhar o saldo atual.
 
-## Como confirmar depois
+## Resultado esperado
 
-- Card "Disponível" na página Capital mostra 1.000.000 (só o Circulante).
-- Aba "Contas" lista as contas restantes; ECOBANK não aparece porque foi eliminada.
-- É possível criar / eliminar / inativar contas a partir dessa aba, excepto a conta de sistema.
+Exemplo: se o Capital Circulante tem **1.000.000** e você recarrega uma companhia com **100.000**, o card **Disponível (banco / caixa)** passa a mostrar **900.000**, e **Carregado nas companhias** aumenta em **100.000**.
