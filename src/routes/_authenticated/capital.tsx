@@ -34,6 +34,7 @@ import {
   Pencil,
   ArrowDownLeft,
   Banknote,
+  Trash2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
@@ -97,7 +98,8 @@ function CapitalPage() {
   });
 
   const c = consistencia.data;
-  const emCaixa = Number(c?.capital_contas ?? 0);
+  const circulanteConta = (contas.data ?? []).find((x: any) => x.sistema);
+  const emCaixa = Number(circulanteConta?.saldo_inicial ?? 0);
   const emCompanhias = Number(c?.capital_companhias ?? 0);
   const aReceber = Number(c?.capital_dividas ?? 0);
   const fundoLucro = Number(c?.fundo_lucro ?? 0);
@@ -175,11 +177,15 @@ function CapitalPage() {
       <Tabs defaultValue="companhias" className="w-full">
         <TabsList>
           <TabsTrigger value="companhias">Companhias aéreas</TabsTrigger>
+          <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="dividas">Dívidas de clientes</TabsTrigger>
           <TabsTrigger value="carregamentos">Carregamentos</TabsTrigger>
         </TabsList>
         <TabsContent value="companhias" className="mt-4">
           <CompanhiasEditor />
+        </TabsContent>
+        <TabsContent value="contas" className="mt-4">
+          <ContasSection contas={contas.data ?? []} currency={currency} />
         </TabsContent>
         <TabsContent value="dividas" className="mt-4">
           <DividasSection currency={currency} />
@@ -848,4 +854,96 @@ function DefinirCirculanteDialog({ settings }: { settings: any }) {
     </Dialog>
   );
 }
+
+function ContasSection({ contas, currency }: { contas: any[]; currency: string }) {
+  const qc = useQueryClient();
+
+  const toggleAtiva = async (conta: any) => {
+    const { error } = await (supabase as any)
+      .from("contas_financeiras")
+      .update({ ativa: !conta.ativa })
+      .eq("id", conta.id);
+    if (error) return toast.error(error.message);
+    toast.success(conta.ativa ? "Conta inativada" : "Conta ativada");
+    qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+    qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+  };
+
+  const eliminar = async (conta: any) => {
+    if (conta.sistema) return toast.error("Não pode eliminar a conta de sistema");
+    if (!confirm(`Eliminar a conta "${conta.nome}"? Esta ação não pode ser desfeita.`)) return;
+    const { error } = await (supabase as any)
+      .from("contas_financeiras")
+      .delete()
+      .eq("id", conta.id);
+    if (error) return toast.error(error.message);
+    toast.success("Conta eliminada");
+    qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+    qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div>
+          <h2 className="font-semibold">Contas (banco / caixa)</h2>
+          <p className="text-xs text-muted-foreground">
+            A conta de sistema (★ Capital Circulante) não pode ser eliminada.
+          </p>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead className="text-right">Saldo</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {contas.length === 0 && (
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem contas.</TableCell></TableRow>
+            )}
+            {contas.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">
+                  {c.sistema && <span className="text-primary mr-1">★</span>}
+                  {c.nome}
+                </TableCell>
+                <TableCell className="capitalize text-muted-foreground">{c.tipo}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatCurrency(Number(c.saldo_inicial ?? 0), currency)}</TableCell>
+                <TableCell>
+                  {c.ativa
+                    ? <Badge className="bg-success/15 text-success border border-success/40">Ativa</Badge>
+                    : <Badge variant="secondary">Inativa</Badge>}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    {!c.sistema && (
+                      <Button size="sm" variant="outline" onClick={() => toggleAtiva(c)}>
+                        {c.ativa ? "Inativar" : "Ativar"}
+                      </Button>
+                    )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => eliminar(c)}
+                      disabled={c.sistema}
+                      title={c.sistema ? "Conta de sistema" : "Eliminar"}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 
