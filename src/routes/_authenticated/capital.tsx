@@ -764,3 +764,88 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
     </Dialog>
   );
 }
+
+function DefinirCirculanteDialog({ settings }: { settings: any }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [valor, setValor] = useState<string>("0");
+
+  useEffect(() => {
+    if (open && settings) {
+      setValor(String(settings.capital_base_operacional ?? 0));
+    }
+  }, [open, settings]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const novo = Number(valor);
+    if (isNaN(novo) || novo < 0) return toast.error("Valor inválido");
+    setSaving(true);
+    try {
+      if (settings?.id) {
+        const { error } = await supabase
+          .from("agency_settings")
+          .update({ capital_base_operacional: novo } as any)
+          .eq("id", settings.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("agency_settings")
+          .insert({ capital_base_operacional: novo, agency_name: "Minha Agência", currency: "AOA" } as any);
+        if (error) throw error;
+      }
+      const { error: rpcErr } = await (supabase as any).rpc("sincronizar_capital_base");
+      if (rpcErr) throw rpcErr;
+      toast.success("Capital Circulante atualizado");
+      qc.invalidateQueries({ queryKey: ["agency_settings"] });
+      qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
+      qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      setOpen(false);
+    } catch (err: any) {
+      toast.error(err.message ?? "Erro");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Banknote className="h-4 w-4" /> Definir Capital Circulante
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Capital Circulante</DialogTitle>
+          <DialogDescription>
+            Valor total do dinheiro operacional da agência. Ao guardar, o saldo do Capital
+            Circulante é ajustado automaticamente com um movimento no histórico.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1">
+            <Label>Valor total *</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
