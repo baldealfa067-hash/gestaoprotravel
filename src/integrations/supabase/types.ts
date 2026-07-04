@@ -274,6 +274,7 @@ export type Database = {
       }
       movimentacoes_capital: {
         Row: {
+          aplicar_saldo: boolean
           bilhete_id: string | null
           cliente_id: string | null
           companhia_id: string | null
@@ -288,6 +289,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          aplicar_saldo?: boolean
           bilhete_id?: string | null
           cliente_id?: string | null
           companhia_id?: string | null
@@ -302,6 +304,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          aplicar_saldo?: boolean
           bilhete_id?: string | null
           cliente_id?: string | null
           companhia_id?: string | null
