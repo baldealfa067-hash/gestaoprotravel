@@ -3,7 +3,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, onFocus, ...props }, ref) => {
+  ({ className, type, onFocus, onKeyDown, ...props }, ref) => {
     return (
       <input
         type={type}
@@ -19,6 +19,17 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
             setTimeout(() => el.select(), 0);
           }
           onFocus?.(e);
+        }}
+        onKeyDown={(e) => {
+          if (
+            type === "number" &&
+            /^[1-9]$/.test(e.key) &&
+            e.currentTarget.value.trim() !== "" &&
+            Number(e.currentTarget.value) === 0
+          ) {
+            e.currentTarget.value = "";
+          }
+          onKeyDown?.(e);
         }}
 
         {...props}
