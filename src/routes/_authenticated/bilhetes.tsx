@@ -340,28 +340,17 @@ function BilhetesPage() {
   const emitir = useMutation({
     mutationFn: async (b: any) => {
       if (!b.companhia_id) {
-        throw new Error("Bilhete sem companhia cadastrada — edite e selecione a companhia.");
+        throw new Error("Bilhete sem companhia — edite e selecione a companhia.");
       }
-      if (emitidosIds.has(b.id)) {
+      if (b.status === "emitido") {
         throw new Error("Este bilhete já foi emitido.");
       }
-      const { data: u } = await supabase.auth.getUser();
-      const { error: e1 } = await (supabase as any).from("movimentacoes_capital").insert({
-        tipo: "emissao_bilhete",
-        companhia_id: b.companhia_id,
-        cliente_id: b.cliente_id,
-        bilhete_id: b.id,
-        valor: Number(b.custo || 0),
-        referencia: b.pnr || null,
-        observacao: `Emissão bilhete ${b.origem}→${b.destino}`,
-        responsavel_id: u.user!.id,
-      });
-      if (e1) throw e1;
-      const { error: e2 } = await supabase
+      // O trigger `trg_bilhete_debita_companhia` cria o movimento e desconta o saldo da companhia.
+      const { error } = await supabase
         .from("bilhetes")
         .update({ status: "emitido" })
         .eq("id", b.id);
-      if (e2) throw e2;
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Bilhete emitido — companhia debitada");
@@ -377,6 +366,7 @@ function BilhetesPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const registarPagamento = useMutation({
     mutationFn: async ({ b, contaId }: { b: any; contaId: string }) => {
