@@ -287,10 +287,13 @@ function ConfiguracoesPage() {
         </CardContent>
       </Card>
 
+      {isAdmin && <CompanhiasEditor />}
+
       {isAdmin && <ResetDataCard />}
     </div>
   );
 }
+
 
 function ResetDataCard() {
   const qc = useQueryClient();
