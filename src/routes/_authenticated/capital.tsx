@@ -177,11 +177,15 @@ function CapitalPage() {
       <Tabs defaultValue="companhias" className="w-full">
         <TabsList>
           <TabsTrigger value="companhias">Companhias aéreas</TabsTrigger>
+          <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="dividas">Dívidas de clientes</TabsTrigger>
           <TabsTrigger value="carregamentos">Carregamentos</TabsTrigger>
         </TabsList>
         <TabsContent value="companhias" className="mt-4">
           <CompanhiasEditor />
+        </TabsContent>
+        <TabsContent value="contas" className="mt-4">
+          <ContasSection contas={contas.data ?? []} currency={currency} />
         </TabsContent>
         <TabsContent value="dividas" className="mt-4">
           <DividasSection currency={currency} />
