@@ -47,11 +47,13 @@ import {
   Phone,
   Plus,
   Search,
+  Send,
   Ticket,
   XCircle,
 } from "lucide-react";
+
 import { toast } from "sonner";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatCurrency } from "@/lib/format";
 import {
   ALERT_BADGE,
   ALERT_LABEL,
@@ -61,6 +63,9 @@ import {
   formatTimeLeft,
   type ReservaStatus,
 } from "@/lib/reservas";
+import { CONTINENTES } from "@/lib/capital";
+import { useAgencySettings } from "@/hooks/use-agency-settings";
+
 
 export const Route = createFileRoute("/_authenticated/reservas")({
   component: ReservasPage,
@@ -194,6 +199,97 @@ function ReservasPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // ===== Emitir bilhete a partir da reserva =====
+  const { data: settings } = useAgencySettings();
+  const currency = settings?.currency ?? "AOA";
+  const { data: companhias = [] } = useQuery({
+    queryKey: ["companhias-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companhias_aereas")
+        .select("id, nome, saldo, ativa")
+        .eq("ativa", true)
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+  const [emitTarget, setEmitTarget] = useState<any | null>(null);
+  const [emitForm, setEmitForm] = useState({
+    companhia_id: "",
+    custo: 0,
+    continente_origem: "africa" as "africa" | "europa" | "america" | "asia" | "oceania",
+    continente_destino: "africa" as "africa" | "europa" | "america" | "asia" | "oceania",
+    classe: "economica" as "economica" | "executiva",
+  });
+
+  const emitir = useMutation({
+    mutationFn: async () => {
+      if (!emitTarget) throw new Error("Reserva inválida");
+      if (!emitForm.companhia_id) throw new Error("Selecione a companhia");
+      if (emitForm.custo <= 0) throw new Error("Custo deve ser maior que zero");
+      const cia = companhias.find((c: any) => c.id === emitForm.companhia_id);
+      if (cia && Number(cia.saldo) < emitForm.custo) {
+        throw new Error(
+          `Saldo da ${cia.nome} (${formatCurrency(cia.saldo, currency)}) é menor que o custo do bilhete.`,
+        );
+      }
+      const { data: u } = await supabase.auth.getUser();
+      const { data: novo, error } = await supabase
+        .from("bilhetes")
+        .insert({
+          cliente_id: emitTarget.cliente_id,
+          vendedor_id: u.user!.id,
+          companhia_id: emitForm.companhia_id,
+          companhia: cia?.nome ?? emitTarget.companhia,
+          continente_origem: emitForm.continente_origem,
+          continente_destino: emitForm.continente_destino,
+          classe: emitForm.classe,
+          origem: emitTarget.origem,
+          destino: emitTarget.destino,
+          data_viagem: emitTarget.data_viagem,
+          pnr: emitTarget.pnr,
+          custo: emitForm.custo,
+          status: "emitido",
+          pago: false,
+        } as any)
+        .select("id")
+        .single();
+      if (error) throw error;
+      const { error: e2 } = await supabase
+        .from("reservas" as any)
+        .update({ status: "emitida", bilhete_id: (novo as any).id })
+        .eq("id", emitTarget.id);
+      if (e2) throw e2;
+    },
+    onSuccess: () => {
+      toast.success("Bilhete emitido — companhia debitada");
+      qc.invalidateQueries({ queryKey: ["reservas"] });
+      qc.invalidateQueries({ queryKey: ["reservas-alertas"] });
+      qc.invalidateQueries({ queryKey: ["bilhetes"] });
+      qc.invalidateQueries({ queryKey: ["companhias-options"] });
+      qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      setEmitTarget(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const openEmitir = (r: any) => {
+    const matchCia = companhias.find(
+      (c: any) => c.nome.toLowerCase() === String(r.companhia ?? "").toLowerCase(),
+    );
+    setEmitForm({
+      companhia_id: matchCia?.id ?? "",
+      custo: 0,
+      continente_origem: (r.continente_origem ?? "africa") as any,
+      continente_destino: (r.continente_destino ?? "africa") as any,
+      classe: (r.classe ?? "economica") as any,
+    });
+    setEmitTarget(r);
+  };
+
+
 
   const filtered = useMemo(() => {
     const now = Date.now();
@@ -553,14 +649,21 @@ function ReservasPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {r.status === "ativa" && !r.bilhete_id && (
+                            <DropdownMenuItem onClick={() => openEmitir(r)}>
+                              <Send className="h-4 w-4 mr-2 text-primary" />
+                              Emitir bilhete
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onClick={() =>
                               patch.mutate({ id: r.id, changes: { status: "emitida" } })
                             }
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2 text-success" />
-                            Marcar como emitida
+                            Marcar como emitida (sem bilhete)
                           </DropdownMenuItem>
+
                           <DropdownMenuItem
                             onClick={() =>
                               patch.mutate({
@@ -596,6 +699,115 @@ function ReservasPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Dialog: Emitir bilhete a partir da reserva */}
+      <Dialog open={!!emitTarget} onOpenChange={(v) => !v && setEmitTarget(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Emitir bilhete — Reserva {emitTarget?.pnr}</DialogTitle>
+          </DialogHeader>
+          {emitTarget && (
+            <div className="space-y-3">
+              <div className="rounded border bg-muted/40 p-3 text-sm space-y-1">
+                <div><span className="text-muted-foreground">Cliente:</span> {emitTarget.cliente?.full_name ?? "—"}</div>
+                <div><span className="text-muted-foreground">Rota:</span> {emitTarget.origem} → {emitTarget.destino}</div>
+                <div><span className="text-muted-foreground">Viagem:</span> {formatDate(emitTarget.data_viagem)}</div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Companhia (donde sai o dinheiro)</Label>
+                <Select
+                  value={emitForm.companhia_id}
+                  onValueChange={(v) => setEmitForm({ ...emitForm, companhia_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar companhia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companhias.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome} — saldo: {formatCurrency(c.saldo, currency)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {companhias.length === 0 && (
+                  <p className="text-xs text-warning">
+                    Nenhuma companhia cadastrada. Adicione em Configurações.
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Continente origem</Label>
+                  <Select
+                    value={emitForm.continente_origem}
+                    onValueChange={(v) => setEmitForm({ ...emitForm, continente_origem: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CONTINENTES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Continente destino</Label>
+                  <Select
+                    value={emitForm.continente_destino}
+                    onValueChange={(v) => setEmitForm({ ...emitForm, continente_destino: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CONTINENTES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Classe</Label>
+                  <Select
+                    value={emitForm.classe}
+                    onValueChange={(v) => setEmitForm({ ...emitForm, classe: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="economica">Económica</SelectItem>
+                      <SelectItem value="executiva">Executiva</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Custo do bilhete</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={emitForm.custo}
+                    onChange={(e) => setEmitForm({ ...emitForm, custo: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                A taxa da agência é calculada automaticamente. Ao emitir, o custo é debitado
+                do saldo da companhia selecionada.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmitTarget(null)}>Cancelar</Button>
+            <Button onClick={() => emitir.mutate()} disabled={emitir.isPending}>
+              <Send className="h-4 w-4 mr-2" />
+              {emitir.isPending ? "A emitir…" : "Emitir bilhete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
