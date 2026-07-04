@@ -55,7 +55,12 @@ export function CompanhiasEditor() {
     mutationFn: async () => {
       const inserts = draft
         .filter((r) => r._new && r.nome.trim())
-        .map((r) => ({ nome: r.nome.trim(), codigo: r.codigo.trim() || null, ativa: r.ativa }));
+        .map((r) => ({
+          nome: r.nome.trim(),
+          codigo: r.codigo.trim() || null,
+          ativa: r.ativa,
+          saldo: Number(r.saldo) || 0,
+        }));
       const updates = draft.filter((r) => r.id && r._dirty && !r._new);
 
       if (inserts.length) {
@@ -65,11 +70,17 @@ export function CompanhiasEditor() {
       for (const u of updates) {
         const { error } = await supabase
           .from("companhias_aereas")
-          .update({ nome: u.nome.trim(), codigo: u.codigo.trim() || null, ativa: u.ativa })
+          .update({
+            nome: u.nome.trim(),
+            codigo: u.codigo.trim() || null,
+            ativa: u.ativa,
+            saldo: Number(u.saldo) || 0,
+          })
           .eq("id", u.id as string);
         if (error) throw error;
       }
     },
+
     onSuccess: () => {
       toast.success("Companhias guardadas");
       qc.invalidateQueries({ queryKey: ["companhias-editor"] });
@@ -187,9 +198,16 @@ export function CompanhiasEditor() {
                     className="font-mono uppercase"
                   />
                 </TableCell>
-                <TableCell className="text-right tabular-nums font-semibold">
-                  {formatCurrency(r.saldo, currency)}
+                <TableCell className="text-right">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={r.saldo}
+                    onChange={(e) => update(idx, { saldo: Number(e.target.value) })}
+                    className="text-right tabular-nums font-semibold"
+                  />
                 </TableCell>
+
                 <TableCell>
                   <input
                     type="checkbox"
