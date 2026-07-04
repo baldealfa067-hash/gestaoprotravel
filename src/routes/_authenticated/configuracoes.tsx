@@ -256,6 +256,23 @@ function ConfiguracoesPage() {
             </p>
           </div>
 
+          <div className="space-y-2 pt-4 border-t">
+            <Label>PIN de administrador (correções de capital)</Label>
+            <Input
+              type="password"
+              value={adminPin}
+              onChange={(e) => setAdminPin(e.target.value)}
+              disabled={!isAdmin}
+              placeholder="Ex: 4 a 8 dígitos"
+              maxLength={16}
+            />
+            <p className="text-xs text-muted-foreground">
+              Exigido na página Capital ao usar "Corrigir Valor". Guarde em local seguro.
+            </p>
+          </div>
+
+
+
 
 
 
