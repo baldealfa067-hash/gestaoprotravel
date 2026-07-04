@@ -170,12 +170,23 @@ function CapitalPage() {
         manuais geram sempre um movimento no histórico com PIN, motivo e responsável.
       </p>
 
-      {/* Companhias — cadastro estilo Excel */}
-      <CompanhiasEditor />
-
-      {/* Movimentações — dívidas e carregamentos */}
-      <DividasSection currency={currency} />
-      <CarregamentosSection currency={currency} />
+      {/* Secções organizadas em abas */}
+      <Tabs defaultValue="companhias" className="w-full">
+        <TabsList>
+          <TabsTrigger value="companhias">Companhias aéreas</TabsTrigger>
+          <TabsTrigger value="dividas">Dívidas de clientes</TabsTrigger>
+          <TabsTrigger value="carregamentos">Carregamentos</TabsTrigger>
+        </TabsList>
+        <TabsContent value="companhias" className="mt-4">
+          <CompanhiasEditor />
+        </TabsContent>
+        <TabsContent value="dividas" className="mt-4">
+          <DividasSection currency={currency} />
+        </TabsContent>
+        <TabsContent value="carregamentos" className="mt-4">
+          <CarregamentosSection currency={currency} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
