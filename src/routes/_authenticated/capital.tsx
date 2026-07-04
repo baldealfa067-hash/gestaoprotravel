@@ -34,6 +34,7 @@ import {
   Pencil,
   ArrowDownLeft,
   Banknote,
+  Trash2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
