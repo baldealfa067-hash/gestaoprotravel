@@ -947,4 +947,68 @@ function ContasSection({ contas, currency }: { contas: any[]; currency: string }
   );
 }
 
+function ReservasEmitidasSection() {
+  const { data = [], isLoading } = useQuery({
+    queryKey: ["capital-reservas-emitidas"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("reservas")
+        .select("id, pnr, companhia, origem, destino, data_viagem, data_limite, updated_at, cliente:clientes(full_name)")
+        .eq("status", "emitida")
+        .order("updated_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Emitida em</TableHead>
+              <TableHead>PNR</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Rota</TableHead>
+              <TableHead>Companhia</TableHead>
+              <TableHead>Viagem</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  A carregar…
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && data.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  Nenhuma reserva emitida ainda
+                </TableCell>
+              </TableRow>
+            )}
+            {data.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell className="tabular-nums text-sm">
+                  {new Date(r.updated_at).toLocaleString("pt-PT")}
+                </TableCell>
+                <TableCell className="font-mono text-xs font-semibold">{r.pnr}</TableCell>
+                <TableCell>{r.cliente?.full_name ?? "—"}</TableCell>
+                <TableCell>{r.origem} → {r.destino}</TableCell>
+                <TableCell>{r.companhia}</TableCell>
+                <TableCell>{new Date(r.data_viagem).toLocaleDateString("pt-PT")}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+
 
