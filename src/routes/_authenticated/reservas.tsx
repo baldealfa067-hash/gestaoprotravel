@@ -431,10 +431,26 @@ function ReservasPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Companhia aérea</Label>
-                  <Input
+                  <Select
                     value={form.companhia}
-                    onChange={(e) => setForm({ ...form, companhia: e.target.value })}
-                  />
+                    onValueChange={(v) => setForm({ ...form, companhia: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar companhia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companhias.length === 0 && (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                          Nenhuma companhia — cadastre em Capital
+                        </div>
+                      )}
+                      {companhias.map((c: any) => (
+                        <SelectItem key={c.id} value={c.nome}>
+                          {c.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Origem</Label>
