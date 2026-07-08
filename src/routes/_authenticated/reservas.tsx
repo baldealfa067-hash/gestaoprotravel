@@ -653,14 +653,6 @@ function ReservasPage() {
                               Emitir bilhete
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem
-                            onClick={() =>
-                              patch.mutate({ id: r.id, changes: { status: "emitida" } })
-                            }
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-2 text-success" />
-                            Marcar como emitida (sem bilhete)
-                          </DropdownMenuItem>
 
                           <DropdownMenuItem
                             onClick={() =>
