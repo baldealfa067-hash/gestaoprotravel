@@ -180,6 +180,7 @@ function CapitalPage() {
           <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="dividas">Dívidas de clientes</TabsTrigger>
           <TabsTrigger value="carregamentos">Carregamentos</TabsTrigger>
+          <TabsTrigger value="reservas-emitidas">Reservas emitidas</TabsTrigger>
         </TabsList>
         <TabsContent value="companhias" className="mt-4">
           <CompanhiasEditor />
@@ -192,6 +193,9 @@ function CapitalPage() {
         </TabsContent>
         <TabsContent value="carregamentos" className="mt-4">
           <CarregamentosSection currency={currency} />
+        </TabsContent>
+        <TabsContent value="reservas-emitidas" className="mt-4">
+          <ReservasEmitidasSection />
         </TabsContent>
       </Tabs>
     </div>
