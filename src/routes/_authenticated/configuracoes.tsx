@@ -52,8 +52,6 @@ function ConfiguracoesPage() {
   const [email, setEmail] = useState("");
   const [endereco, setEndereco] = useState("");
   const [nif, setNif] = useState("");
-  const [capitalBase, setCapitalBase] = useState<string>("0");
-  const [adminPin, setAdminPin] = useState<string>("");
 
   useEffect(() => {
     if (settings) {
@@ -64,8 +62,6 @@ function ConfiguracoesPage() {
       setEmail((settings as any).email ?? "");
       setEndereco((settings as any).endereco ?? "");
       setNif((settings as any).nif ?? "");
-      setCapitalBase(String((settings as any).capital_base_operacional ?? 0));
-      setAdminPin(String((settings as any).admin_pin ?? ""));
     }
   }, [settings]);
 
@@ -97,8 +93,6 @@ function ConfiguracoesPage() {
         email: email || null,
         endereco: endereco || null,
         nif: nif || null,
-        capital_base_operacional: Number(capitalBase) || 0,
-        admin_pin: adminPin || null,
       };
 
       if (settings?.id) {
@@ -112,9 +106,6 @@ function ConfiguracoesPage() {
         if (error) throw error;
       }
 
-      // Sincroniza saldo do Capital Circulante com a nova Base
-      const { error: rpcErr } = await supabase.rpc("sincronizar_capital_base" as any);
-      if (rpcErr) throw rpcErr;
     },
     onSuccess: () => {
       toast.success("Configurações atualizadas e capital sincronizado");
