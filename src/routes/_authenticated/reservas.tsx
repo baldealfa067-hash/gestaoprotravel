@@ -58,7 +58,6 @@ import {
   ALERT_BADGE,
   ALERT_LABEL,
   RESERVA_STATUS_LABELS,
-  RESERVA_STATUS_OPTIONS,
   alertLevel,
   formatTimeLeft,
   type ReservaStatus,
