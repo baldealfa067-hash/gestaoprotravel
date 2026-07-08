@@ -772,17 +772,30 @@ function CarregarCompanhiaDialog({ contas, companhias }: { contas: any[]; compan
   );
 }
 
-function DefinirCirculanteDialog({ settings }: { settings: any }) {
+function DefinirCirculanteDialog({ settings: _settings }: { settings: any }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [valor, setValor] = useState<string>("0");
+  const [valor, setValor] = useState<string>("");
+
+  const { data: circulante } = useQuery({
+    queryKey: ["capital-circulante-conta"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("contas_financeiras")
+        .select("id, nome, saldo_inicial")
+        .eq("sistema", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
-    if (open && settings) {
-      setValor(String(settings.capital_base_operacional ?? 0));
+    if (open) {
+      setValor(String(circulante?.saldo_inicial ?? 0));
     }
-  }, [open, settings]);
+  }, [open, circulante]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -790,24 +803,15 @@ function DefinirCirculanteDialog({ settings }: { settings: any }) {
     if (isNaN(novo) || novo < 0) return toast.error("Valor inválido");
     setSaving(true);
     try {
-      if (settings?.id) {
-        const { error } = await supabase
-          .from("agency_settings")
-          .update({ capital_base_operacional: novo } as any)
-          .eq("id", settings.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("agency_settings")
-          .insert({ capital_base_operacional: novo, agency_name: "Minha Agência", currency: "AOA" } as any);
-        if (error) throw error;
-      }
-      const { error: rpcErr } = await (supabase as any).rpc("sincronizar_capital_base");
-      if (rpcErr) throw rpcErr;
+      const { error } = await (supabase as any).rpc("definir_capital_circulante", {
+        _novo_valor: novo,
+      });
+      if (error) throw error;
       toast.success("Capital Circulante atualizado");
-      qc.invalidateQueries({ queryKey: ["agency_settings"] });
       qc.invalidateQueries({ queryKey: ["contas_financeiras"] });
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["capital-circulante-conta"] });
+      qc.invalidateQueries({ queryKey: ["movimentacoes"] });
       setOpen(false);
     } catch (err: any) {
       toast.error(err.message ?? "Erro");
@@ -827,8 +831,8 @@ function DefinirCirculanteDialog({ settings }: { settings: any }) {
         <DialogHeader>
           <DialogTitle>Capital Circulante</DialogTitle>
           <DialogDescription>
-            Valor total do dinheiro operacional da agência. Ao guardar, o saldo do Capital
-            Circulante é ajustado automaticamente com um movimento no histórico.
+            Coloque o valor total e clique em Guardar. A alteração fica registada
+            automaticamente no histórico.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
@@ -837,6 +841,7 @@ function DefinirCirculanteDialog({ settings }: { settings: any }) {
             <Input
               type="number"
               step="0.01"
+              min={0}
               value={valor}
               onChange={(e) => setValor(e.target.value)}
               autoFocus

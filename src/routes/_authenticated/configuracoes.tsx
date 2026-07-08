@@ -52,8 +52,6 @@ function ConfiguracoesPage() {
   const [email, setEmail] = useState("");
   const [endereco, setEndereco] = useState("");
   const [nif, setNif] = useState("");
-  const [capitalBase, setCapitalBase] = useState<string>("0");
-  const [adminPin, setAdminPin] = useState<string>("");
 
   useEffect(() => {
     if (settings) {
@@ -64,8 +62,6 @@ function ConfiguracoesPage() {
       setEmail((settings as any).email ?? "");
       setEndereco((settings as any).endereco ?? "");
       setNif((settings as any).nif ?? "");
-      setCapitalBase(String((settings as any).capital_base_operacional ?? 0));
-      setAdminPin(String((settings as any).admin_pin ?? ""));
     }
   }, [settings]);
 
@@ -97,8 +93,6 @@ function ConfiguracoesPage() {
         email: email || null,
         endereco: endereco || null,
         nif: nif || null,
-        capital_base_operacional: Number(capitalBase) || 0,
-        admin_pin: adminPin || null,
       };
 
       if (settings?.id) {
@@ -112,12 +106,9 @@ function ConfiguracoesPage() {
         if (error) throw error;
       }
 
-      // Sincroniza saldo do Capital Circulante com a nova Base
-      const { error: rpcErr } = await supabase.rpc("sincronizar_capital_base" as any);
-      if (rpcErr) throw rpcErr;
     },
     onSuccess: () => {
-      toast.success("Configurações atualizadas e capital sincronizado");
+      toast.success("Configurações atualizadas");
       qc.invalidateQueries({ queryKey: ["agency_settings"] });
       qc.invalidateQueries({ queryKey: ["contas"] });
       qc.invalidateQueries({ queryKey: ["consistencia"] });
@@ -239,39 +230,8 @@ function ConfiguracoesPage() {
             <Input value={nif} onChange={(e) => setNif(e.target.value)} disabled={!isAdmin} />
           </div>
 
-          <div className="space-y-2 pt-4 border-t">
-            <Label>Capital inicial (aporte)</Label>
-            <Input
-              type="number"
-              min={0}
-              step="1"
-              value={capitalBase}
-              onChange={(e) => setCapitalBase(e.target.value)}
-              disabled={!isAdmin}
-              placeholder="0"
-            />
-            <p className="text-xs text-muted-foreground">
-              Valor total ({currency}) que colocas no Capital Circulante. Ao guardar, o
-              sistema ajusta o saldo em caixa para este valor. Depois, carregar companhias
-              faz o Capital Circulante diminuir e pagamentos de clientes fazem-no voltar
-              a subir. O lucro (taxas) cresce à parte, no Fundo de Lucro.
-            </p>
-          </div>
 
-          <div className="space-y-2 pt-4 border-t">
-            <Label>PIN de administrador (correções de capital)</Label>
-            <Input
-              type="password"
-              value={adminPin}
-              onChange={(e) => setAdminPin(e.target.value)}
-              disabled={!isAdmin}
-              placeholder="Ex: 4 a 8 dígitos"
-              maxLength={16}
-            />
-            <p className="text-xs text-muted-foreground">
-              Exigido na página Capital ao usar "Corrigir Valor". Guarde em local seguro.
-            </p>
-          </div>
+
 
 
 
