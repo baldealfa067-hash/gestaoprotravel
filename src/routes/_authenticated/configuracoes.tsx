@@ -239,39 +239,8 @@ function ConfiguracoesPage() {
             <Input value={nif} onChange={(e) => setNif(e.target.value)} disabled={!isAdmin} />
           </div>
 
-          <div className="space-y-2 pt-4 border-t">
-            <Label>Capital inicial (aporte)</Label>
-            <Input
-              type="number"
-              min={0}
-              step="1"
-              value={capitalBase}
-              onChange={(e) => setCapitalBase(e.target.value)}
-              disabled={!isAdmin}
-              placeholder="0"
-            />
-            <p className="text-xs text-muted-foreground">
-              Valor total ({currency}) que colocas no Capital Circulante. Ao guardar, o
-              sistema ajusta o saldo em caixa para este valor. Depois, carregar companhias
-              faz o Capital Circulante diminuir e pagamentos de clientes fazem-no voltar
-              a subir. O lucro (taxas) cresce à parte, no Fundo de Lucro.
-            </p>
-          </div>
 
-          <div className="space-y-2 pt-4 border-t">
-            <Label>PIN de administrador (correções de capital)</Label>
-            <Input
-              type="password"
-              value={adminPin}
-              onChange={(e) => setAdminPin(e.target.value)}
-              disabled={!isAdmin}
-              placeholder="Ex: 4 a 8 dígitos"
-              maxLength={16}
-            />
-            <p className="text-xs text-muted-foreground">
-              Exigido na página Capital ao usar "Corrigir Valor". Guarde em local seguro.
-            </p>
-          </div>
+
 
 
 
