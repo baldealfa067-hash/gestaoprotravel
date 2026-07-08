@@ -58,7 +58,6 @@ import {
   ALERT_BADGE,
   ALERT_LABEL,
   RESERVA_STATUS_LABELS,
-  RESERVA_STATUS_OPTIONS,
   alertLevel,
   formatTimeLeft,
   type ReservaStatus,
@@ -431,10 +430,26 @@ function ReservasPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Companhia aérea</Label>
-                  <Input
+                  <Select
                     value={form.companhia}
-                    onChange={(e) => setForm({ ...form, companhia: e.target.value })}
-                  />
+                    onValueChange={(v) => setForm({ ...form, companhia: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar companhia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companhias.length === 0 && (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                          Nenhuma companhia — cadastre em Capital
+                        </div>
+                      )}
+                      {companhias.map((c: any) => (
+                        <SelectItem key={c.id} value={c.nome}>
+                          {c.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Origem</Label>
@@ -480,24 +495,6 @@ function ReservasPage() {
                     <SelectContent>
                       <SelectItem value="economica">Económica</SelectItem>
                       <SelectItem value="executiva">Executiva</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={form.status}
-                    onValueChange={(v) => setForm({ ...form, status: v as ReservaStatus })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {RESERVA_STATUS_OPTIONS.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {RESERVA_STATUS_LABELS[s]}
-                        </SelectItem>
-                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -655,14 +652,6 @@ function ReservasPage() {
                               Emitir bilhete
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem
-                            onClick={() =>
-                              patch.mutate({ id: r.id, changes: { status: "emitida" } })
-                            }
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-2 text-success" />
-                            Marcar como emitida (sem bilhete)
-                          </DropdownMenuItem>
 
                           <DropdownMenuItem
                             onClick={() =>
