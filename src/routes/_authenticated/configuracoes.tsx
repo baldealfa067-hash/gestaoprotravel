@@ -108,7 +108,7 @@ function ConfiguracoesPage() {
 
     },
     onSuccess: () => {
-      toast.success("Configurações atualizadas e capital sincronizado");
+      toast.success("Configurações atualizadas");
       qc.invalidateQueries({ queryKey: ["agency_settings"] });
       qc.invalidateQueries({ queryKey: ["contas"] });
       qc.invalidateQueries({ queryKey: ["consistencia"] });
