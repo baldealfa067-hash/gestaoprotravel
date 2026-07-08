@@ -509,6 +509,13 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      definir_capital_circulante: {
+        Args: { _novo_valor: number }
+        Returns: {
+          delta: number
+          novo_saldo: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
