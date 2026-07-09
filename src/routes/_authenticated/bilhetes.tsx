@@ -1053,6 +1053,8 @@ function BilhetesPage() {
           if (!o) {
             setPayTarget(null);
             setPayContaId("");
+            setPayValor(0);
+            setPayJaPago(0);
           }
         }}
       >
@@ -1060,54 +1062,80 @@ function BilhetesPage() {
           <DialogHeader>
             <DialogTitle>Registar pagamento</DialogTitle>
             <DialogDescription>
-              Credita a conta escolhida com o valor cobrado e liquida a dívida.
+              Aceita pagamento total ou parcial. O bilhete só fica marcado como pago quando o
+              acumulado atinge o valor cobrado.
             </DialogDescription>
           </DialogHeader>
-          {payTarget && (
-            <div className="space-y-3 text-sm">
-              <Row label="Cliente" value={payTarget.cliente?.full_name ?? "—"} />
-              <Row label="Valor a receber" value={formatCurrency(payTarget.valor_cobrado, currency)} />
-              <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Custo → Capital Circulante</span>
-                  <span className="tabular-nums font-medium">
-                    {formatCurrency(payTarget.custo, currency)}
-                  </span>
+          {payTarget && (() => {
+            const total = Number(payTarget.valor_cobrado || 0);
+            const restante = Math.max(0, total - payJaPago);
+            const cobreTudo = payValor + 0.01 >= restante && payValor > 0;
+            return (
+              <div className="space-y-3 text-sm">
+                <Row label="Cliente" value={payTarget.cliente?.full_name ?? "—"} />
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Total</div>
+                    <div className="font-semibold tabular-nums">{formatCurrency(total, currency)}</div>
+                  </div>
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Já pago</div>
+                    <div className="font-semibold tabular-nums text-success">{formatCurrency(payJaPago, currency)}</div>
+                  </div>
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Restante</div>
+                    <div className="font-semibold tabular-nums text-warning">{formatCurrency(restante, currency)}</div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxa → Fundo de Lucro</span>
-                  <span className="tabular-nums font-medium text-success">
-                    {formatCurrency(payTarget.taxa_agencia, currency)}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Conta que recebe o custo *</Label>
-                <Select value={payContaId} onValueChange={setPayContaId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolher conta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contas.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.sistema ? "★ " : ""}
-                        {c.tipo === "caixa" ? "Caixa" : "Banco"} — {c.nome}
-                        {c.sistema ? " (Capital Circulante)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  A taxa da agência vai automaticamente para o Fundo de Lucro.
-                </p>
-                {contas.length === 0 && (
-                  <p className="text-xs text-warning">
-                    Nenhuma conta cadastrada. Adicione uma conta em Capital.
+
+                <div className="space-y-2">
+                  <Label>Valor a receber agora *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={restante}
+                      step="0.01"
+                      value={payValor}
+                      onChange={(e) => setPayValor(Number(e.target.value))}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPayValor(restante)}>
+                      Total
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPayValor(Math.round(restante / 2))}>
+                      ½
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {cobreTudo
+                      ? "Este pagamento liquida a dívida por completo."
+                      : `Após este pagamento restarão ${formatCurrency(restante - payValor, currency)}.`}
                   </p>
-                )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Conta que recebe o custo *</Label>
+                  <Select value={payContaId} onValueChange={setPayContaId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolher conta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contas.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.sistema ? "★ " : ""}
+                          {c.tipo === "caixa" ? "Caixa" : "Banco"} — {c.nome}
+                          {c.sistema ? " (Capital Circulante)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    A parte referente à taxa da agência vai automaticamente para o Fundo de Lucro (proporcional).
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <DialogFooter>
             <Button
@@ -1115,21 +1143,25 @@ function BilhetesPage() {
               onClick={() => {
                 setPayTarget(null);
                 setPayContaId("");
+                setPayValor(0);
+                setPayJaPago(0);
               }}
             >
               Cancelar
             </Button>
             <Button
               onClick={() =>
-                payTarget && registarPagamento.mutate({ b: payTarget, contaId: payContaId })
+                payTarget &&
+                registarPagamento.mutate({ b: payTarget, contaId: payContaId, valor: payValor })
               }
-              disabled={registarPagamento.isPending || !payContaId}
+              disabled={registarPagamento.isPending || !payContaId || !payValor || payValor <= 0}
             >
               Confirmar pagamento
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       <NovaReservaDoBilheteDialog
         bilhete={reservaTarget}
