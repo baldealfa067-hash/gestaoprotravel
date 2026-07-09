@@ -145,6 +145,8 @@ function BilhetesPage() {
   // pagamento dialog
   const [payTarget, setPayTarget] = useState<any | null>(null);
   const [payContaId, setPayContaId] = useState<string>("");
+  const [payValor, setPayValor] = useState<number>(0);
+  const [payJaPago, setPayJaPago] = useState<number>(0);
 
   // emitir dialog
   const [emitTarget, setEmitTarget] = useState<any | null>(null);
