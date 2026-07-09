@@ -371,22 +371,38 @@ function BilhetesPage() {
 
 
   const registarPagamento = useMutation({
-    mutationFn: async ({ b, contaId }: { b: any; contaId: string }) => {
+    mutationFn: async ({ b, contaId, valor }: { b: any; contaId: string; valor: number }) => {
       if (!contaId) throw new Error("Selecione a conta destino");
+      if (!valor || valor <= 0) throw new Error("Informe um valor de pagamento válido");
+      const total = Number(b.valor_cobrado || 0);
+      // buscar quanto já foi pago para validar
+      const { data: pagosMovs } = await (supabase as any)
+        .from("movimentacoes_capital")
+        .select("valor")
+        .eq("tipo", "pagamento_cliente")
+        .eq("bilhete_id", b.id);
+      const jaPago = (pagosMovs ?? []).reduce((s: number, m: any) => s + Number(m.valor), 0);
+      const restante = Math.max(0, total - jaPago);
+      if (valor > restante + 0.01) {
+        throw new Error(`Valor superior ao restante (${restante.toFixed(2)})`);
+      }
       const { data: u } = await supabase.auth.getUser();
       const { error } = await (supabase as any).from("movimentacoes_capital").insert({
         tipo: "pagamento_cliente",
         conta_destino_id: contaId,
         cliente_id: b.cliente_id,
         bilhete_id: b.id,
-        valor: Number(b.valor_cobrado || 0),
+        valor,
         referencia: b.pnr || null,
-        observacao: `Pagamento bilhete ${b.origem}→${b.destino}`,
+        observacao:
+          valor + 0.01 >= restante
+            ? `Pagamento total bilhete ${b.origem}→${b.destino}`
+            : `Pagamento parcial bilhete ${b.origem}→${b.destino}`,
         responsavel_id: u.user!.id,
       });
       if (error) throw error;
-      // trigger marca pago=true; alinha status → pago apenas se ainda não emitido
-      if (b.status !== "emitido") {
+      // se com este pagamento cobriu tudo e ainda não estava emitido → status "pago"
+      if (jaPago + valor + 0.01 >= total && b.status !== "emitido") {
         await supabase.from("bilhetes").update({ status: "pago" }).eq("id", b.id);
       }
     },
@@ -395,9 +411,12 @@ function BilhetesPage() {
       qc.invalidateQueries({ queryKey: ["bilhetes"] });
       qc.invalidateQueries({ queryKey: ["contas-options"] });
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["capital-dividas-lista"] });
       qc.invalidateQueries({ queryKey: ["movimentacoes"] });
       setPayTarget(null);
       setPayContaId("");
+      setPayValor(0);
+      setPayJaPago(0);
     },
     onError: (e: Error) => toast.error(e.message),
   });
