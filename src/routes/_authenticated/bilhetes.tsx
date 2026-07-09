@@ -901,9 +901,24 @@ function BilhetesPage() {
                           )}
                           {!b.pago && !cancelado && (
                             <DropdownMenuItem
-                              onClick={() => {
+                              onClick={async () => {
+                                const { data: movs } = await (supabase as any)
+                                  .from("movimentacoes_capital")
+                                  .select("valor")
+                                  .eq("tipo", "pagamento_cliente")
+                                  .eq("bilhete_id", b.id);
+                                const jaPago = (movs ?? []).reduce(
+                                  (s: number, m: any) => s + Number(m.valor),
+                                  0,
+                                );
+                                const restante = Math.max(
+                                  0,
+                                  Number(b.valor_cobrado || 0) - jaPago,
+                                );
                                 setPayTarget(b);
                                 setPayContaId(capitalCirculante?.id ?? "");
+                                setPayJaPago(jaPago);
+                                setPayValor(restante);
                               }}
                             >
                               <Wallet className="h-4 w-4 mr-2" /> Registar pagamento
