@@ -229,7 +229,7 @@ function DividasSection({ currency }: { currency: string }) {
         const total = Number(b.valor_cobrado ?? 0);
         const restante = Math.max(0, total - pago);
         let situacao: "pago" | "parcial" | "nao_pago" = "nao_pago";
-        if (b.pago || restante < 0.01) situacao = "pago";
+        if (restante < 0.01) situacao = "pago";
         else if (pago > 0) situacao = "parcial";
         return { ...b, pago_valor: pago, restante, situacao };
       });
@@ -253,7 +253,7 @@ function DividasSection({ currency }: { currency: string }) {
           <div>
             <h2 className="font-semibold">Dívidas de clientes</h2>
             <p className="text-xs text-muted-foreground">
-              Quem já pagou, quem pagou pela metade e quem ainda deve.
+              Separado por pago total, pagamento parcial e sem pagamento.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-xs">
@@ -282,17 +282,23 @@ function DividasSection({ currency }: { currency: string }) {
             {!isLoading && rows.length === 0 && (
               <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sem bilhetes em aberto.</TableCell></TableRow>
             )}
-            {rows.map((r: any) => (
-              <TableRow key={r.id}>
+            {rows
+              .slice()
+              .sort((a: any, b: any) => {
+                const order: Record<string, number> = { parcial: 0, nao_pago: 1, pago: 2 };
+                return order[a.situacao] - order[b.situacao];
+              })
+              .map((r: any) => (
+              <TableRow key={r.id} className={r.situacao !== "pago" ? "bg-warning/5" : undefined}>
                 <TableCell className="font-medium">{r.cliente?.full_name ?? "—"}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.valor_cobrado ?? 0), currency)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatCurrency(r.pago_valor, currency)}</TableCell>
                 <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(r.restante, currency)}</TableCell>
                 <TableCell>
-                  {r.situacao === "pago" && <Badge className="bg-success text-success-foreground">Pago</Badge>}
-                  {r.situacao === "parcial" && <Badge className="bg-primary/15 text-primary border border-primary/40">Pagou pela metade</Badge>}
-                  {r.situacao === "nao_pago" && <Badge variant="destructive">Não pagou</Badge>}
+                  {r.situacao === "pago" && <Badge className="bg-success text-success-foreground">Pago total</Badge>}
+                  {r.situacao === "parcial" && <Badge className="bg-warning/15 text-warning-foreground border border-warning/40">Pagamento parcial</Badge>}
+                  {r.situacao === "nao_pago" && <Badge variant="destructive">Ainda deve</Badge>}
                 </TableCell>
               </TableRow>
             ))}
