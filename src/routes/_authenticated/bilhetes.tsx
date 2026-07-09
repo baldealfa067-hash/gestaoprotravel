@@ -220,6 +220,36 @@ function BilhetesPage() {
     [contas],
   );
 
+  const { data: pagamentosPorBilhete = {} } = useQuery({
+    queryKey: ["pagamentos-por-bilhete"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("movimentacoes_capital")
+        .select("bilhete_id, valor")
+        .eq("tipo", "pagamento_cliente")
+        .not("bilhete_id", "is", null);
+      if (error) throw error;
+      return (data ?? []).reduce((acc: Record<string, number>, m: any) => {
+        acc[m.bilhete_id] = (acc[m.bilhete_id] ?? 0) + Number(m.valor ?? 0);
+        return acc;
+      }, {});
+    },
+    refetchInterval: 30_000,
+  });
+
+  const getPaymentInfo = (b: any) => {
+    const total = Number(b.valor_cobrado || 0);
+    const pago = Number((pagamentosPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const restante = Math.max(0, total - pago);
+    return {
+      total,
+      pago,
+      restante,
+      liquidado: restante < 0.01,
+      parcial: pago > 0 && restante >= 0.01,
+    };
+  };
+
   // reservas ligadas a bilhetes (para badge "tem reserva")
   const { data: reservasBilhetes = new Set<string>() } = useQuery({
     queryKey: ["reservas-por-bilhete"],
@@ -467,18 +497,19 @@ function BilhetesPage() {
     const mes = list.filter((b: any) => new Date(b.created_at).getTime() >= mesInicio);
     const receitaMes = mes.reduce((s: number, b: any) => s + Number(b.taxa_agencia || 0), 0);
     const dividaPend = list
-      .filter((b: any) => !b.pago && ["emitido", "pendente", "pedido_criado"].includes(b.status))
-      .reduce((s: number, b: any) => s + Number(b.valor_cobrado || 0), 0);
+      .filter((b: any) => ["emitido", "pendente", "pedido_criado", "pago"].includes(b.status))
+      .reduce((s: number, b: any) => s + getPaymentInfo(b).restante, 0);
     const aEmitir = list.filter(
       (b: any) => b.status === "pedido_criado" || b.status === "pendente",
     ).length;
     return { totalHoje: hoje.length, totalMes: mes.length, receitaMes, dividaPend, aEmitir };
-  }, [bilhetes]);
+  }, [bilhetes, pagamentosPorBilhete]);
 
   const filtered = bilhetes.filter((b: any) => {
     if (filterStatus !== "all" && b.status !== filterStatus) return false;
-    if (filterPago === "pago" && !b.pago) return false;
-    if (filterPago === "devendo" && b.pago) return false;
+    const paymentInfo = getPaymentInfo(b);
+    if (filterPago === "pago" && !paymentInfo.liquidado) return false;
+    if (filterPago === "devendo" && paymentInfo.liquidado) return false;
     if (filterCompanhia !== "all" && b.companhia_id !== filterCompanhia) return false;
     if (search) {
       const s = search.toLowerCase();
@@ -841,6 +872,7 @@ function BilhetesPage() {
               {filtered.map((b: any) => {
                 const jaEmitido = emitidosIds.has(b.id) || b.status === "emitido";
                 const cancelado = b.status === "cancelado";
+                const paymentInfo = getPaymentInfo(b);
                 return (
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.cliente?.full_name ?? "—"}</TableCell>
@@ -878,12 +910,23 @@ function BilhetesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {b.pago ? (
+                      {paymentInfo.liquidado ? (
                         <span className="inline-flex items-center gap-1 text-xs text-success">
-                          <CheckCircle2 className="h-3 w-3" /> Pago
+                          <CheckCircle2 className="h-3 w-3" /> Pago total
+                        </span>
+                      ) : paymentInfo.parcial ? (
+                        <span className="inline-flex flex-col gap-0.5 text-xs text-warning">
+                          <span className="inline-flex items-center gap-1 font-medium">
+                            <AlertTriangle className="h-3 w-3" /> Parcial
+                          </span>
+                          <span className="tabular-nums">
+                            Falta {formatCurrency(paymentInfo.restante, currency)}
+                          </span>
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">Devendo</span>
+                        <span className="inline-flex items-center gap-1 text-xs text-destructive">
+                          <AlertTriangle className="h-3 w-3" /> Ainda deve
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -899,7 +942,7 @@ function BilhetesPage() {
                               <Send className="h-4 w-4 mr-2" /> Emitir (debita companhia)
                             </DropdownMenuItem>
                           )}
-                          {!b.pago && !cancelado && (
+                          {!paymentInfo.liquidado && !cancelado && (
                             <DropdownMenuItem
                               onClick={async () => {
                                 const { data: movs } = await (supabase as any)
@@ -936,7 +979,7 @@ function BilhetesPage() {
                           <DropdownMenuItem onClick={() => openPrint(b, "bilhete")}>
                             <Printer className="h-4 w-4 mr-2" /> Imprimir bilhete
                           </DropdownMenuItem>
-                          {b.pago && (
+                          {paymentInfo.liquidado && (
                             <DropdownMenuItem onClick={() => openPrint(b, "recibo")}>
                               <Receipt className="h-4 w-4 mr-2" /> Recibo de pagamento
                             </DropdownMenuItem>
