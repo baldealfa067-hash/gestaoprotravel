@@ -488,12 +488,7 @@ export type Database = {
     }
     Functions: {
       ajustar_capital: {
-        Args: {
-          _motivo: string
-          _novo_valor: number
-          _pin: string
-          _target: string
-        }
+        Args: { _motivo: string; _novo_valor: number; _target: string }
         Returns: undefined
       }
       calcular_taxa_agencia: {
