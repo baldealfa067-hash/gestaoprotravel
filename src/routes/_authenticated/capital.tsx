@@ -35,7 +35,9 @@ import {
   ArrowDownLeft,
   Banknote,
   Trash2,
+  FileDown,
 } from "lucide-react";
+import { exportarDividasPDF } from "@/lib/pdf-dividas";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { CompanhiasEditor } from "@/components/companhias-editor";
@@ -179,6 +181,7 @@ function CapitalPage() {
           <TabsTrigger value="companhias">Companhias aéreas</TabsTrigger>
           <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="dividas">Dívidas de clientes</TabsTrigger>
+          <TabsTrigger value="dividas-cias">Dívidas a companhias</TabsTrigger>
           <TabsTrigger value="carregamentos">Carregamentos</TabsTrigger>
           <TabsTrigger value="reservas-emitidas">Reservas emitidas</TabsTrigger>
         </TabsList>
@@ -189,7 +192,10 @@ function CapitalPage() {
           <ContasSection contas={contas.data ?? []} currency={currency} />
         </TabsContent>
         <TabsContent value="dividas" className="mt-4">
-          <DividasSection currency={currency} />
+          <DividasSection currency={currency} settings={settings} />
+        </TabsContent>
+        <TabsContent value="dividas-cias" className="mt-4">
+          <DividasCompanhiasSection currency={currency} />
         </TabsContent>
         <TabsContent value="carregamentos" className="mt-4">
           <CarregamentosSection currency={currency} />
