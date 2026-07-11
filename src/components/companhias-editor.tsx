@@ -16,6 +16,7 @@ type Row = {
   codigo: string;
   saldo: number;
   ativa: boolean;
+  modo: "saldo" | "credito";
   _dirty?: boolean;
   _new?: boolean;
 };
@@ -30,7 +31,7 @@ export function CompanhiasEditor() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companhias_aereas")
-        .select("id, nome, codigo, saldo, ativa")
+        .select("id, nome, codigo, saldo, ativa, modo")
         .order("nome");
       if (error) throw error;
       return (data ?? []) as any[];
@@ -47,6 +48,7 @@ export function CompanhiasEditor() {
         codigo: r.codigo ?? "",
         saldo: Number(r.saldo ?? 0),
         ativa: !!r.ativa,
+        modo: (r.modo ?? "saldo") as "saldo" | "credito",
       })),
     );
   }, [rows]);
@@ -59,7 +61,8 @@ export function CompanhiasEditor() {
           nome: r.nome.trim(),
           codigo: r.codigo.trim() || null,
           ativa: r.ativa,
-          saldo: Number(r.saldo) || 0,
+          modo: r.modo,
+          saldo: r.modo === "credito" ? 0 : Number(r.saldo) || 0,
         }));
       const updates = draft.filter((r) => r.id && r._dirty && !r._new);
 
@@ -68,14 +71,17 @@ export function CompanhiasEditor() {
         if (error) throw error;
       }
       for (const u of updates) {
+        const patch: any = {
+          nome: u.nome.trim(),
+          codigo: u.codigo.trim() || null,
+          ativa: u.ativa,
+          modo: u.modo,
+        };
+        // Só atualiza saldo em modo saldo (o trigger cria carregamento e debita o circulante)
+        if (u.modo === "saldo") patch.saldo = Number(u.saldo) || 0;
         const { error } = await supabase
           .from("companhias_aereas")
-          .update({
-            nome: u.nome.trim(),
-            codigo: u.codigo.trim() || null,
-            ativa: u.ativa,
-            saldo: Number(u.saldo) || 0,
-          })
+          .update(patch)
           .eq("id", u.id as string);
         if (error) throw error;
       }
@@ -113,7 +119,7 @@ export function CompanhiasEditor() {
   const addRow = () => {
     setDraft((d) => [
       ...d,
-      { id: null, nome: "", codigo: "", saldo: 0, ativa: true, _new: true, _dirty: true },
+      { id: null, nome: "", codigo: "", saldo: 0, ativa: true, modo: "saldo", _new: true, _dirty: true },
     ]);
   };
 
@@ -162,23 +168,24 @@ export function CompanhiasEditor() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead className="w-28">Código</TableHead>
+              <TableHead className="w-24">Código</TableHead>
+              <TableHead className="w-36">Modo</TableHead>
               <TableHead className="text-right w-40">Saldo atual</TableHead>
-              <TableHead className="w-24">Ativa</TableHead>
+              <TableHead className="w-20">Ativa</TableHead>
               <TableHead className="w-14"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                   A carregar…
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && draft.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                   Nenhuma companhia. Clique "Adicionar linha".
                 </TableCell>
               </TableRow>
@@ -201,14 +208,32 @@ export function CompanhiasEditor() {
                     className="font-mono uppercase"
                   />
                 </TableCell>
+                <TableCell>
+                  <select
+                    value={r.modo}
+                    onChange={(e) => update(idx, { modo: e.target.value as "saldo" | "credito" })}
+                    className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    title="Saldo: precisa recarregar. Crédito: intermediária, cria dívida ao usar."
+                  >
+                    <option value="saldo">Saldo (recarregar)</option>
+                    <option value="credito">Crédito (intermediária)</option>
+                  </select>
+                </TableCell>
                 <TableCell className="text-right">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={r.saldo}
-                    onChange={(e) => update(idx, { saldo: Number(e.target.value) })}
-                    className="text-right tabular-nums font-semibold"
-                  />
+                  {r.modo === "credito" ? (
+                    <span className={`text-sm tabular-nums font-semibold ${r.saldo < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                      {formatCurrency(r.saldo, currency)}
+                      {r.saldo < 0 && <span className="ml-1 text-xs">(dívida)</span>}
+                    </span>
+                  ) : (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={r.saldo}
+                      onChange={(e) => update(idx, { saldo: Number(e.target.value) })}
+                      className="text-right tabular-nums font-semibold"
+                    />
+                  )}
                 </TableCell>
 
                 <TableCell>
@@ -224,8 +249,8 @@ export function CompanhiasEditor() {
                     variant="ghost"
                     size="icon"
                     onClick={() => removeDraft(idx)}
-                    disabled={r.saldo > 0}
-                    title={r.saldo > 0 ? "Saldo tem que ser 0" : "Eliminar"}
+                    disabled={r.saldo !== 0}
+                    title={r.saldo !== 0 ? "Saldo tem que ser 0" : "Eliminar"}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>

@@ -35,7 +35,9 @@ import {
   ArrowDownLeft,
   Banknote,
   Trash2,
+  FileDown,
 } from "lucide-react";
+import { exportarDividasPDF } from "@/lib/pdf-dividas";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { CompanhiasEditor } from "@/components/companhias-editor";
@@ -179,6 +181,7 @@ function CapitalPage() {
           <TabsTrigger value="companhias">Companhias aéreas</TabsTrigger>
           <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="dividas">Dívidas de clientes</TabsTrigger>
+          <TabsTrigger value="dividas-cias">Dívidas a companhias</TabsTrigger>
           <TabsTrigger value="carregamentos">Carregamentos</TabsTrigger>
           <TabsTrigger value="reservas-emitidas">Reservas emitidas</TabsTrigger>
         </TabsList>
@@ -189,7 +192,10 @@ function CapitalPage() {
           <ContasSection contas={contas.data ?? []} currency={currency} />
         </TabsContent>
         <TabsContent value="dividas" className="mt-4">
-          <DividasSection currency={currency} />
+          <DividasSection currency={currency} settings={settings} />
+        </TabsContent>
+        <TabsContent value="dividas-cias" className="mt-4">
+          <DividasCompanhiasSection currency={currency} />
         </TabsContent>
         <TabsContent value="carregamentos" className="mt-4">
           <CarregamentosSection currency={currency} />
@@ -202,7 +208,7 @@ function CapitalPage() {
   );
 }
 
-function DividasSection({ currency }: { currency: string }) {
+function DividasSection({ currency, settings }: { currency: string; settings: any }) {
   const { data, isLoading } = useQuery({
     queryKey: ["capital-dividas-lista"],
     queryFn: async () => {
@@ -256,12 +262,29 @@ function DividasSection({ currency }: { currency: string }) {
               Separado por pago total, pagamento parcial e sem pagamento.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
             <span>Total faturado: <b className="tabular-nums">{formatCurrency(totais.total, currency)}</b></span>
             <span className="text-warning">A receber: <b className="tabular-nums">{formatCurrency(totais.devido, currency)}</b></span>
             <span className="text-success">Pagos: <b>{totais.pagos}</b></span>
             <span className="text-primary">Parciais: <b>{totais.parciais}</b></span>
             <span className="text-destructive">Não pagos: <b>{totais.naoPagos}</b></span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await exportarDividasPDF({
+                    currency,
+                    agencyName: settings?.agency_name ?? "Agência",
+                    logoUrl: settings?.logo_url ?? null,
+                  });
+                } catch (e: any) {
+                  toast.error(e?.message ?? "Erro a gerar PDF");
+                }
+              }}
+            >
+              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
+            </Button>
           </div>
         </div>
         <Table>
@@ -1008,5 +1031,139 @@ function ReservasEmitidasSection() {
   );
 }
 
+function DividasCompanhiasSection({ currency }: { currency: string }) {
+  const qc = useQueryClient();
+  const [payFor, setPayFor] = useState<any | null>(null);
+  const [valor, setValor] = useState("");
+  const [obs, setObs] = useState("");
+  const [saving, setSaving] = useState(false);
 
+  const { data = [], isLoading } = useQuery({
+    queryKey: ["capital-dividas-companhias"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("companhias_aereas")
+        .select("id, nome, codigo, saldo, ultimo_consumo, ativa")
+        .eq("modo", "credito")
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+    refetchInterval: 30_000,
+  });
+
+  const total = data.reduce((s: number, r: any) => s + (Number(r.saldo) < 0 ? -Number(r.saldo) : 0), 0);
+
+  const submitPay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payFor) return;
+    const v = Number(valor);
+    if (!v || v <= 0) return toast.error("Valor inválido");
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("movimentacoes_capital").insert({
+      tipo: "pagamento_companhia",
+      valor: v,
+      companhia_id: payFor.id,
+      observacao: obs.trim() || `Pagamento a ${payFor.nome}`,
+      responsavel_id: user?.id,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Pagamento registado");
+    qc.invalidateQueries({ queryKey: ["capital-dividas-companhias"] });
+    qc.invalidateQueries({ queryKey: ["companhias_aereas"] });
+    qc.invalidateQueries({ queryKey: ["companhias-editor"] });
+    qc.invalidateQueries({ queryKey: ["companhias-options"] });
+    setPayFor(null); setValor(""); setObs("");
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">Dívidas a companhias intermediárias</h2>
+            <p className="text-xs text-muted-foreground">
+              Companhias em modo Crédito. O pagamento aqui é manual e não mexe no Capital Circulante.
+            </p>
+          </div>
+          <div className="text-xs">
+            Total a pagar: <b className="tabular-nums text-destructive">{formatCurrency(total, currency)}</b>
+          </div>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Companhia</TableHead>
+              <TableHead>Código</TableHead>
+              <TableHead>Último uso</TableHead>
+              <TableHead className="text-right">Dívida atual</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">A carregar…</TableCell></TableRow>
+            )}
+            {!isLoading && data.length === 0 && (
+              <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Nenhuma companhia intermediária cadastrada.</TableCell></TableRow>
+            )}
+            {data.map((c: any) => {
+              const saldo = Number(c.saldo ?? 0);
+              const divida = saldo < 0 ? -saldo : 0;
+              return (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.nome}</TableCell>
+                  <TableCell className="font-mono text-xs">{c.codigo ?? "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {c.ultimo_consumo ? new Date(c.ultimo_consumo).toLocaleDateString() : "—"}
+                  </TableCell>
+                  <TableCell className={`text-right tabular-nums font-semibold ${divida > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                    {formatCurrency(divida, currency)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={divida <= 0}
+                      onClick={() => { setPayFor(c); setValor(String(divida)); setObs(""); }}
+                    >
+                      Registar pagamento
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+
+      <Dialog open={!!payFor} onOpenChange={(o) => !o && setPayFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pagamento a {payFor?.nome}</DialogTitle>
+            <DialogDescription>
+              Registo manual — reduz a dívida à companhia sem tocar no Capital Circulante.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitPay} className="space-y-3">
+            <div className="space-y-1">
+              <Label>Valor *</Label>
+              <Input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label>Observação</Label>
+              <Input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex: transferência bancária ref. 1234" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPayFor(null)}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>{saving ? "..." : "Registar"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
 

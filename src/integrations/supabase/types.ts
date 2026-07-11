@@ -189,6 +189,7 @@ export type Database = {
           codigo: string | null
           created_at: string
           id: string
+          modo: string
           nome: string
           saldo: number
           ultimo_carregamento: string | null
@@ -201,6 +202,7 @@ export type Database = {
           codigo?: string | null
           created_at?: string
           id?: string
+          modo?: string
           nome: string
           saldo?: number
           ultimo_carregamento?: string | null
@@ -213,6 +215,7 @@ export type Database = {
           codigo?: string | null
           created_at?: string
           id?: string
+          modo?: string
           nome?: string
           saldo?: number
           ultimo_carregamento?: string | null
@@ -553,6 +556,7 @@ export type Database = {
         | "despesa_operacional"
         | "transferencia_interna"
         | "aporte_capital"
+        | "pagamento_companhia"
       ticket_status:
         | "pedido_criado"
         | "pendente"
@@ -698,6 +702,7 @@ export const Constants = {
         "despesa_operacional",
         "transferencia_interna",
         "aporte_capital",
+        "pagamento_companhia",
       ],
       ticket_status: [
         "pedido_criado",
