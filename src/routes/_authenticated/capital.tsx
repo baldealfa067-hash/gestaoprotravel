@@ -170,7 +170,7 @@ function CapitalPage() {
 
       <p className="text-xs text-muted-foreground">
         O <b>Total geral</b> é calculado automaticamente e não pode ser editado. Correções
-        manuais geram sempre um movimento no histórico com PIN, motivo e responsável.
+        manuais geram sempre um movimento no histórico com motivo e responsável.
       </p>
 
       {/* Secções organizadas em abas */}
@@ -443,13 +443,11 @@ function CorrigirButton({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [novo, setNovo] = useState("");
-  const [pin, setPin] = useState("");
   const [motivo, setMotivo] = useState("");
 
   useEffect(() => {
     if (open) {
       setNovo(String(currentValue));
-      setPin("");
       setMotivo("");
     }
   }, [open, currentValue]);
@@ -458,13 +456,11 @@ function CorrigirButton({
     e.preventDefault();
     const v = Number(novo);
     if (Number.isNaN(v) || v < 0) return toast.error("Valor inválido");
-    if (!pin) return toast.error("Informe o PIN de admin");
     if (motivo.trim().length < 3) return toast.error("Motivo muito curto");
     setSaving(true);
     const { error } = await (supabase as any).rpc("ajustar_capital", {
       _target: target,
       _novo_valor: v,
-      _pin: pin,
       _motivo: motivo.trim(),
     });
     setSaving(false);
@@ -493,7 +489,7 @@ function CorrigirButton({
         <DialogHeader>
           <DialogTitle>Corrigir: {label}</DialogTitle>
           <DialogDescription>
-            Gera um movimento auditável. O PIN é configurado em Configurações.
+            Gera um movimento auditável no histórico, com motivo e responsável.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
@@ -506,15 +502,6 @@ function CorrigirButton({
               value={novo}
               onChange={(e) => setNovo(e.target.value)}
               autoFocus
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>PIN do admin</Label>
-            <Input
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="••••"
             />
           </div>
           <div className="space-y-1">
