@@ -15,6 +15,7 @@ export const MOV_TIPO_LABEL: Record<string, string> = {
   carregamento_companhia: "Carregamento de companhia",
   emissao_bilhete: "Emissão de bilhete",
   pagamento_cliente: "Pagamento de cliente",
+  pagamento_companhia: "Pagamento a companhia",
   transferencia_lucro: "Transferência para lucro",
   despesa_operacional: "Despesa operacional",
   transferencia_interna: "Transferência interna",
