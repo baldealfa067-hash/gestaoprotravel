@@ -168,9 +168,10 @@ export function CompanhiasEditor() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead className="w-28">Código</TableHead>
+              <TableHead className="w-24">Código</TableHead>
+              <TableHead className="w-36">Modo</TableHead>
               <TableHead className="text-right w-40">Saldo atual</TableHead>
-              <TableHead className="w-24">Ativa</TableHead>
+              <TableHead className="w-20">Ativa</TableHead>
               <TableHead className="w-14"></TableHead>
             </TableRow>
           </TableHeader>
