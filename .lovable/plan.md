@@ -1,23 +1,55 @@
-## Objetivo
+# Plano — Exportar PDF de dívidas + Companhias intermediárias (crédito)
 
-Garantir que, quando uma agência/companhia é recarregada, o valor sai automaticamente do **Disponível (banco / caixa)** / **Capital Circulante** e entra em **Carregado nas companhias**.
+## 1. Exportar PDF na página Dívidas (Capital)
 
-## Plano
+Botão "Exportar PDF" na aba Dívidas. Os filtros continuam apenas no ecrã; o PDF exporta **tudo** (sem filtro).
 
-1. **Corrigir o backend de movimentos**
-   - Manter a lógica de `carregamento_companhia`: subtrair da conta origem e somar na companhia.
-   - Remover o trigger duplicado em `movimentacoes_capital`, porque hoje existem dois triggers chamando a mesma função (`trg_aplicar_mov` e `trg_aplicar_movimentacao`).
-   - Deixar apenas um trigger ativo para evitar lançamentos duplicados ou comportamento inconsistente.
+Conteúdo do PDF:
+- Cabeçalho com logo, nome da agência, data/hora de emissão e título "Relatório de Dívidas".
+- **Secção 1 — Dívidas de clientes** (tabela por bilhete):
+  Data viagem · Cliente · Itinerário (Origem → Destino) · Classe · Companhia · Custo · Taxa agência · Total · Pago · Em dívida.
+  Sub-agrupado em: "Não pagos" e "Pagamento parcial", com subtotais.
+- **Secção 2 — Dívidas a companhias intermediárias** (nova):
+  Companhia · Nº bilhetes · Total devido · Último bilhete. Total geral no fim.
+- Rodapé: total geral (clientes + companhias), assinatura do responsável.
 
-2. **Garantir que o botão “Carregar companhia” usa o Capital Circulante**
-   - O formulário já seleciona a conta de sistema como origem por padrão.
-   - Vou ajustar para ficar mais explícito que o dinheiro sai do **Capital Circulante**.
-   - Após salvar, a tela vai atualizar imediatamente as consultas de contas, companhias e consistência.
+Implementação: jsPDF + jspdf-autotable (leve, client-side). Novo componente `src/components/export-dividas-pdf.tsx` e helper `src/lib/pdf-dividas.ts`.
 
-3. **Verificar o saldo real após a correção**
-   - Conferir no banco se o saldo da conta circulante e o saldo das companhias estão coerentes.
-   - Se houver recarregamento antigo que não foi descontado corretamente, preparar uma correção pontual para alinhar o saldo atual.
+## 2. Companhias em modo crédito (intermediárias)
 
-## Resultado esperado
+Nova propriedade `modo` em `companhias_aereas`: `'saldo'` (atual — precisa carregar) ou `'credito'` (intermediária — não carrega, cria dívida).
 
-Exemplo: se o Capital Circulante tem **1.000.000** e você recarrega uma companhia com **100.000**, o card **Disponível (banco / caixa)** passa a mostrar **900.000**, e **Carregado nas companhias** aumenta em **100.000**.
+Fluxo:
+- Ao criar/editar companhia em `CompanhiasEditor`, escolher o modo. Companhias `credito` não pedem saldo nem alerta.
+- Ao emitir bilhete usando companhia `credito`: trigger `bilhete_debita_companhia` deixa o saldo em negativo (que representa dívida) e cria movimento `emissao_bilhete` normalmente. O trigger `registar_carregamento_por_saldo_companhia` deixa de exigir Circulante para companhias `credito`.
+- Nova view/query agrega dívida por companhia intermediária = `-saldo` quando `modo='credito'` e saldo < 0 (ou soma de `emissao_bilhete` menos `pagamento_companhia`).
+
+## 3. Nova aba "Dívidas a companhias" no Capital
+
+Lista companhias em modo crédito com saldo devedor, total geral, e botão "Registar pagamento" por linha.
+
+Pagamento à companhia é **manual, sem mexer no Capital Circulante** (conforme escolhido):
+- Novo tipo de movimentação `pagamento_companhia` (enum) — apenas soma ao saldo da companhia (reduz a dívida), não toca em contas financeiras.
+- Guarda histórico com data, valor, observação e responsável.
+
+## 4. Alterações técnicas
+
+### Migração SQL
+- `ALTER TYPE mov_tipo ADD VALUE 'pagamento_companhia'`.
+- `ALTER TABLE companhias_aereas ADD COLUMN modo text DEFAULT 'saldo' CHECK (modo IN ('saldo','credito'))`.
+- Atualizar trigger `registar_carregamento_por_saldo_companhia`: ignorar quando `modo='credito'` (não debita circulante nem cria movimento de carregamento).
+- Atualizar trigger `aplicar_movimentacao` para tratar `pagamento_companhia` (soma ao `companhias_aereas.saldo`, sem tocar em contas).
+- Atualizar `verificar_consistencia_capital` para excluir saldo negativo de companhias `credito` da soma total (representa dívida, não capital).
+
+### Frontend
+- `src/components/companhias-editor.tsx`: campo "Modo" (Saldo / Crédito). Ocultar saldo/alerta quando crédito.
+- `src/routes/_authenticated/capital.tsx`: nova aba "Dívidas a companhias" + botão "Exportar PDF" na aba Dívidas.
+- `src/routes/_authenticated/bilhetes.tsx`: dropdown de companhias mostra `[Crédito]` ao lado do nome quando aplicável.
+- `src/lib/capital.ts`: label para `pagamento_companhia`.
+
+### Dependências
+- `bun add jspdf jspdf-autotable`.
+
+## Fora do âmbito
+- Filtros do PDF (o utilizador confirmou que ficam só no ecrã).
+- Pagamento de dívida a companhia via Capital Circulante.
