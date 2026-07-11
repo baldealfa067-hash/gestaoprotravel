@@ -208,7 +208,7 @@ function CapitalPage() {
   );
 }
 
-function DividasSection({ currency }: { currency: string }) {
+function DividasSection({ currency, settings }: { currency: string; settings: any }) {
   const { data, isLoading } = useQuery({
     queryKey: ["capital-dividas-lista"],
     queryFn: async () => {
