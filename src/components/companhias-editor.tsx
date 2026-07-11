@@ -16,6 +16,7 @@ type Row = {
   codigo: string;
   saldo: number;
   ativa: boolean;
+  modo: "saldo" | "credito";
   _dirty?: boolean;
   _new?: boolean;
 };
@@ -30,7 +31,7 @@ export function CompanhiasEditor() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companhias_aereas")
-        .select("id, nome, codigo, saldo, ativa")
+        .select("id, nome, codigo, saldo, ativa, modo")
         .order("nome");
       if (error) throw error;
       return (data ?? []) as any[];
@@ -47,6 +48,7 @@ export function CompanhiasEditor() {
         codigo: r.codigo ?? "",
         saldo: Number(r.saldo ?? 0),
         ativa: !!r.ativa,
+        modo: (r.modo ?? "saldo") as "saldo" | "credito",
       })),
     );
   }, [rows]);
@@ -59,7 +61,8 @@ export function CompanhiasEditor() {
           nome: r.nome.trim(),
           codigo: r.codigo.trim() || null,
           ativa: r.ativa,
-          saldo: Number(r.saldo) || 0,
+          modo: r.modo,
+          saldo: r.modo === "credito" ? 0 : Number(r.saldo) || 0,
         }));
       const updates = draft.filter((r) => r.id && r._dirty && !r._new);
 
@@ -68,14 +71,17 @@ export function CompanhiasEditor() {
         if (error) throw error;
       }
       for (const u of updates) {
+        const patch: any = {
+          nome: u.nome.trim(),
+          codigo: u.codigo.trim() || null,
+          ativa: u.ativa,
+          modo: u.modo,
+        };
+        // Só atualiza saldo em modo saldo (o trigger cria carregamento e debita o circulante)
+        if (u.modo === "saldo") patch.saldo = Number(u.saldo) || 0;
         const { error } = await supabase
           .from("companhias_aereas")
-          .update({
-            nome: u.nome.trim(),
-            codigo: u.codigo.trim() || null,
-            ativa: u.ativa,
-            saldo: Number(u.saldo) || 0,
-          })
+          .update(patch)
           .eq("id", u.id as string);
         if (error) throw error;
       }
@@ -113,7 +119,7 @@ export function CompanhiasEditor() {
   const addRow = () => {
     setDraft((d) => [
       ...d,
-      { id: null, nome: "", codigo: "", saldo: 0, ativa: true, _new: true, _dirty: true },
+      { id: null, nome: "", codigo: "", saldo: 0, ativa: true, modo: "saldo", _new: true, _dirty: true },
     ]);
   };
 
