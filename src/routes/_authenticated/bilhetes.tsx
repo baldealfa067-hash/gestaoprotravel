@@ -194,7 +194,7 @@ function BilhetesPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("companhias_aereas")
-        .select("id, nome, saldo, alerta_minimo, ativa")
+        .select("id, nome, saldo, alerta_minimo, ativa, modo")
         .order("nome");
       if (error) throw error;
       return (data ?? []) as any[];
@@ -591,7 +591,10 @@ function BilhetesPage() {
                         .filter((c: any) => c.ativa)
                         .map((c: any) => (
                           <SelectItem key={c.id} value={c.id}>
-                            {c.nome} — saldo: {formatCurrency(c.saldo, currency)}
+                            {c.nome}
+                            {c.modo === "credito"
+                              ? " — [Crédito / intermediária]"
+                              : ` — saldo: ${formatCurrency(c.saldo, currency)}`}
                           </SelectItem>
                         ))}
                     </SelectContent>
