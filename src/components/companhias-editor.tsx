@@ -178,14 +178,14 @@ export function CompanhiasEditor() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                   A carregar…
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && draft.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                   Nenhuma companhia. Clique "Adicionar linha".
                 </TableCell>
               </TableRow>
@@ -208,14 +208,32 @@ export function CompanhiasEditor() {
                     className="font-mono uppercase"
                   />
                 </TableCell>
+                <TableCell>
+                  <select
+                    value={r.modo}
+                    onChange={(e) => update(idx, { modo: e.target.value as "saldo" | "credito" })}
+                    className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    title="Saldo: precisa recarregar. Crédito: intermediária, cria dívida ao usar."
+                  >
+                    <option value="saldo">Saldo (recarregar)</option>
+                    <option value="credito">Crédito (intermediária)</option>
+                  </select>
+                </TableCell>
                 <TableCell className="text-right">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={r.saldo}
-                    onChange={(e) => update(idx, { saldo: Number(e.target.value) })}
-                    className="text-right tabular-nums font-semibold"
-                  />
+                  {r.modo === "credito" ? (
+                    <span className={`text-sm tabular-nums font-semibold ${r.saldo < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                      {formatCurrency(r.saldo, currency)}
+                      {r.saldo < 0 && <span className="ml-1 text-xs">(dívida)</span>}
+                    </span>
+                  ) : (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={r.saldo}
+                      onChange={(e) => update(idx, { saldo: Number(e.target.value) })}
+                      className="text-right tabular-nums font-semibold"
+                    />
+                  )}
                 </TableCell>
 
                 <TableCell>
@@ -231,8 +249,8 @@ export function CompanhiasEditor() {
                     variant="ghost"
                     size="icon"
                     onClick={() => removeDraft(idx)}
-                    disabled={r.saldo > 0}
-                    title={r.saldo > 0 ? "Saldo tem que ser 0" : "Eliminar"}
+                    disabled={r.saldo !== 0}
+                    title={r.saldo !== 0 ? "Saldo tem que ser 0" : "Eliminar"}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
