@@ -262,12 +262,29 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
               Separado por pago total, pagamento parcial e sem pagamento.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
             <span>Total faturado: <b className="tabular-nums">{formatCurrency(totais.total, currency)}</b></span>
             <span className="text-warning">A receber: <b className="tabular-nums">{formatCurrency(totais.devido, currency)}</b></span>
             <span className="text-success">Pagos: <b>{totais.pagos}</b></span>
             <span className="text-primary">Parciais: <b>{totais.parciais}</b></span>
             <span className="text-destructive">Não pagos: <b>{totais.naoPagos}</b></span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await exportarDividasPDF({
+                    currency,
+                    agencyName: settings?.agency_name ?? "Agência",
+                    logoUrl: settings?.logo_url ?? null,
+                  });
+                } catch (e: any) {
+                  toast.error(e?.message ?? "Erro a gerar PDF");
+                }
+              }}
+            >
+              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
+            </Button>
           </div>
         </div>
         <Table>
