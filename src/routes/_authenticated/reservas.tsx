@@ -73,7 +73,6 @@ export const Route = createFileRoute("/_authenticated/reservas")({
 const schema = z.object({
   cliente_id: z.string().uuid("Cliente obrigatório"),
   pnr: z.string().trim().min(2, "PNR obrigatório").max(20),
-  companhia: z.string().trim().min(2).max(80),
   origem: z.string().trim().min(2).max(80),
   destino: z.string().trim().min(2).max(80),
   data_viagem: z.string().min(1, "Data obrigatória"),
@@ -95,7 +94,6 @@ function empty(): Form {
   return {
     cliente_id: "",
     pnr: "",
-    companhia: "",
     origem: "",
     destino: "",
     data_viagem: new Date().toISOString().slice(0, 10),
@@ -157,7 +155,7 @@ function ReservasPage() {
       const payload = {
         cliente_id: values.cliente_id,
         pnr: values.pnr.trim().toUpperCase(),
-        companhia: values.companhia.trim(),
+        companhia: "",
         origem: values.origem.trim(),
         destino: values.destino.trim(),
         data_viagem: values.data_viagem,
@@ -352,7 +350,7 @@ function ReservasPage() {
     setForm({
       cliente_id: r.cliente_id,
       pnr: r.pnr,
-      companhia: r.companhia,
+      
       origem: r.origem,
       destino: r.destino,
       data_viagem: r.data_viagem,
@@ -427,29 +425,6 @@ function ReservasPage() {
                     onChange={(e) => setForm({ ...form, pnr: e.target.value })}
                     placeholder="Ex: ABC123"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label>Companhia aérea</Label>
-                  <Select
-                    value={form.companhia}
-                    onValueChange={(v) => setForm({ ...form, companhia: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecionar companhia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companhias.length === 0 && (
-                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                          Nenhuma companhia — cadastre em Capital
-                        </div>
-                      )}
-                      {companhias.map((c: any) => (
-                        <SelectItem key={c.id} value={c.nome}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Origem</Label>
