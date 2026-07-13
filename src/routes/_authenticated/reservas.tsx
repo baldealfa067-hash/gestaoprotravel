@@ -350,7 +350,7 @@ function ReservasPage() {
     setForm({
       cliente_id: r.cliente_id,
       pnr: r.pnr,
-      companhia: r.companhia,
+      
       origem: r.origem,
       destino: r.destino,
       data_viagem: r.data_viagem,
