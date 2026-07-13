@@ -94,7 +94,6 @@ function empty(): Form {
   return {
     cliente_id: "",
     pnr: "",
-    companhia: "",
     origem: "",
     destino: "",
     data_viagem: new Date().toISOString().slice(0, 10),
