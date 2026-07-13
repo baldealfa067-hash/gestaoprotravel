@@ -155,7 +155,7 @@ function ReservasPage() {
       const payload = {
         cliente_id: values.cliente_id,
         pnr: values.pnr.trim().toUpperCase(),
-        companhia: values.companhia.trim(),
+        companhia: "",
         origem: values.origem.trim(),
         destino: values.destino.trim(),
         data_viagem: values.data_viagem,
