@@ -73,7 +73,6 @@ export const Route = createFileRoute("/_authenticated/reservas")({
 const schema = z.object({
   cliente_id: z.string().uuid("Cliente obrigatório"),
   pnr: z.string().trim().min(2, "PNR obrigatório").max(20),
-  companhia: z.string().trim().min(2).max(80),
   origem: z.string().trim().min(2).max(80),
   destino: z.string().trim().min(2).max(80),
   data_viagem: z.string().min(1, "Data obrigatória"),
