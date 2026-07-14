@@ -46,11 +46,13 @@ import {
   MoreHorizontal,
   Phone,
   Plus,
+  Route as RouteIcon,
   Search,
   Send,
   Ticket,
   XCircle,
 } from "lucide-react";
+import { MudancaRotaDialog, type MudancaTarget } from "@/components/mudanca-rota-dialog";
 
 import { toast } from "sonner";
 import { formatDate, formatDateTime, formatCurrency } from "@/lib/format";
@@ -213,6 +215,7 @@ function ReservasPage() {
     },
   });
   const [emitTarget, setEmitTarget] = useState<any | null>(null);
+  const [mudancaTarget, setMudancaTarget] = useState<MudancaTarget | null>(null);
   const [emitForm, setEmitForm] = useState({
     companhia_id: "",
     custo: 0,
@@ -260,6 +263,12 @@ function ReservasPage() {
         .update({ status: "emitida", bilhete_id: (novo as any).id })
         .eq("id", emitTarget.id);
       if (e2) throw e2;
+      // Transfere mudanças de rota pendentes (registadas ainda na reserva) para o novo bilhete
+      await (supabase as any)
+        .from("mudancas_rota")
+        .update({ bilhete_id: (novo as any).id })
+        .eq("reserva_id", emitTarget.id)
+        .is("bilhete_id", null);
     },
     onSuccess: () => {
       toast.success("Bilhete emitido — companhia debitada");
@@ -645,6 +654,26 @@ function ReservasPage() {
                           <DropdownMenuItem onClick={() => openEdit(r)}>
                             <Clock className="h-4 w-4 mr-2" /> Editar prazo / dados
                           </DropdownMenuItem>
+                          {r.status === "ativa" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setMudancaTarget({
+                                  type: r.bilhete_id ? "bilhete" : "reserva",
+                                  row: {
+                                    id: r.bilhete_id ?? r.id,
+                                    cliente_id: r.cliente_id,
+                                    origem: r.origem,
+                                    destino: r.destino,
+                                    classe: r.classe,
+                                    data_viagem: r.data_viagem,
+                                    cliente: r.cliente,
+                                  },
+                                })
+                              }
+                            >
+                              <RouteIcon className="h-4 w-4 mr-2" /> Mudança de rota
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
@@ -772,6 +801,7 @@ function ReservasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <MudancaRotaDialog target={mudancaTarget} onClose={() => setMudancaTarget(null)} />
     </div>
   );
 }

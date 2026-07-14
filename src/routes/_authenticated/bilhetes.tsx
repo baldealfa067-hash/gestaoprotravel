@@ -56,8 +56,10 @@ import {
   CalendarClock,
   Printer,
   Receipt,
+  Route as RouteIcon,
 } from "lucide-react";
 import { PrintDocDialog, type PrintDocType, type PrintDocData } from "@/components/print/PrintDocDialog";
+import { MudancaRotaDialog, type MudancaTarget } from "@/components/mudanca-rota-dialog";
 import { toast } from "sonner";
 
 
@@ -265,6 +267,7 @@ function BilhetesPage() {
 
   // estado do diálogo "criar reserva a partir do bilhete"
   const [reservaTarget, setReservaTarget] = useState<any | null>(null);
+  const [mudancaTarget, setMudancaTarget] = useState<MudancaTarget | null>(null);
 
   // impressão
   const [printState, setPrintState] = useState<{ type: PrintDocType; data: PrintDocData } | null>(null);
@@ -906,6 +909,11 @@ function BilhetesPage() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-semibold">
                       {formatCurrency(b.valor_cobrado, currency)}
+                      {Number(b.taxa_mudancas_total ?? 0) > 0 && (
+                        <div className="text-[10px] font-normal text-warning">
+                          + {formatCurrency(b.taxa_mudancas_total, currency)} mudanças
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge className={STATUS_BADGE[b.status as TicketStatus]} variant="outline">
@@ -973,6 +981,26 @@ function BilhetesPage() {
                           {!cancelado && !reservasBilhetes.has(b.id) && (
                             <DropdownMenuItem onClick={() => setReservaTarget(b)}>
                               <CalendarClock className="h-4 w-4 mr-2" /> Criar reserva
+                            </DropdownMenuItem>
+                          )}
+                          {!cancelado && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setMudancaTarget({
+                                  type: "bilhete",
+                                  row: {
+                                    id: b.id,
+                                    cliente_id: b.cliente_id,
+                                    origem: b.origem,
+                                    destino: b.destino,
+                                    classe: b.classe,
+                                    data_viagem: b.data_viagem,
+                                    cliente: b.cliente,
+                                  },
+                                })
+                              }
+                            >
+                              <RouteIcon className="h-4 w-4 mr-2" /> Registar mudança de rota
                             </DropdownMenuItem>
                           )}
 
@@ -1225,6 +1253,8 @@ function BilhetesPage() {
         type={printState?.type ?? "bilhete"}
         data={printState?.data ?? null}
       />
+
+      <MudancaRotaDialog target={mudancaTarget} onClose={() => setMudancaTarget(null)} />
     </div>
   );
 }

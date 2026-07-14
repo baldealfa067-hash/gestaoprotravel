@@ -1,55 +1,64 @@
-# Plano — Exportar PDF de dívidas + Companhias intermediárias (crédito)
+## Módulo de Mudanças de Rota
 
-## 1. Exportar PDF na página Dívidas (Capital)
+Adicionar a possibilidade de registar mudanças de rota (reroute) em reservas ativas e bilhetes emitidos, com taxa manual que aumenta a dívida do cliente e vai para o Fundo de Lucro quando paga.
 
-Botão "Exportar PDF" na aba Dívidas. Os filtros continuam apenas no ecrã; o PDF exporta **tudo** (sem filtro).
+### 1. Base de dados (nova migração)
 
-Conteúdo do PDF:
-- Cabeçalho com logo, nome da agência, data/hora de emissão e título "Relatório de Dívidas".
-- **Secção 1 — Dívidas de clientes** (tabela por bilhete):
-  Data viagem · Cliente · Itinerário (Origem → Destino) · Classe · Companhia · Custo · Taxa agência · Total · Pago · Em dívida.
-  Sub-agrupado em: "Não pagos" e "Pagamento parcial", com subtotais.
-- **Secção 2 — Dívidas a companhias intermediárias** (nova):
-  Companhia · Nº bilhetes · Total devido · Último bilhete. Total geral no fim.
-- Rodapé: total geral (clientes + companhias), assinatura do responsável.
+Nova tabela `public.mudancas_rota`:
+- `bilhete_id` (nullable, FK bilhetes)
+- `reserva_id` (nullable, FK reservas)
+- `rota_antiga` (text), `rota_nova` (text)
+- `classe_antiga`, `classe_nova` (nullable)
+- `data_viagem_antiga`, `data_viagem_nova` (nullable)
+- `taxa_mudanca` (numeric, obrigatório > 0)
+- `motivo` (text opcional)
+- `responsavel_id` (uuid)
+- `created_at`, `updated_at`
 
-Implementação: jsPDF + jspdf-autotable (leve, client-side). Novo componente `src/components/export-dividas-pdf.tsx` e helper `src/lib/pdf-dividas.ts`.
+RLS + GRANT padrão (authenticated + service_role). Vendedores criam/vêem; admin gere tudo.
 
-## 2. Companhias em modo crédito (intermediárias)
+Nova coluna em `bilhetes`:
+- `taxa_mudancas_total` (numeric default 0) — soma acumulada das taxas de mudança do bilhete.
 
-Nova propriedade `modo` em `companhias_aereas`: `'saldo'` (atual — precisa carregar) ou `'credito'` (intermediária — não carrega, cria dívida).
+Trigger `trg_mudanca_aplica_taxa` em `mudancas_rota`:
+- Ao INSERT com `bilhete_id`:
+  - Soma `taxa_mudanca` a `bilhetes.taxa_mudancas_total`
+  - Recalcula `bilhetes.valor_cobrado = custo + taxa_agencia + taxa_mudancas_total`
+  - Marca `bilhetes.pago = false` se o novo total > pagamentos acumulados
+  - Actualiza rota/classe/data do bilhete com os novos valores (se fornecidos)
+- Ao INSERT numa reserva sem bilhete: apenas actualiza a rota/classe/data da reserva; a taxa só entra no bilhete quando emitido (guardar como "pendente" — soma-se ao emitir).
 
-Fluxo:
-- Ao criar/editar companhia em `CompanhiasEditor`, escolher o modo. Companhias `credito` não pedem saldo nem alerta.
-- Ao emitir bilhete usando companhia `credito`: trigger `bilhete_debita_companhia` deixa o saldo em negativo (que representa dívida) e cria movimento `emissao_bilhete` normalmente. O trigger `registar_carregamento_por_saldo_companhia` deixa de exigir Circulante para companhias `credito`.
-- Nova view/query agrega dívida por companhia intermediária = `-saldo` quando `modo='credito'` e saldo < 0 (ou soma de `emissao_bilhete` menos `pagamento_companhia`).
+Ajuste em `aplicar_movimentacao` (`pagamento_cliente`):
+- O rácio de rateio custo/lucro passa a considerar `taxa_agencia + taxa_mudancas_total` como parte do "lucro" — assim a taxa de mudança paga alimenta `fundo_lucro` naturalmente sem código extra.
 
-## 3. Nova aba "Dívidas a companhias" no Capital
+Ajuste em `verificar_consistencia_capital`: usar `valor_cobrado` já reflecte tudo (nenhuma mudança adicional).
 
-Lista companhias em modo crédito com saldo devedor, total geral, e botão "Registar pagamento" por linha.
+Ao emitir bilhete a partir de reserva com mudanças pendentes: copiar as taxas pendentes para o bilhete via trigger `sync_reserva_on_bilhete_emitido` (ou nova função auxiliar).
 
-Pagamento à companhia é **manual, sem mexer no Capital Circulante** (conforme escolhido):
-- Novo tipo de movimentação `pagamento_companhia` (enum) — apenas soma ao saldo da companhia (reduz a dívida), não toca em contas financeiras.
-- Guarda histórico com data, valor, observação e responsável.
+### 2. Frontend
 
-## 4. Alterações técnicas
+**`src/components/mudanca-rota-dialog.tsx`** (novo) — diálogo reutilizável com:
+- Campos: nova rota (origem/destino), nova classe (opcional), nova data viagem (opcional), taxa (obrigatória, numérico), motivo (opcional).
+- Mostra rota/classe/data actuais em modo leitura.
 
-### Migração SQL
-- `ALTER TYPE mov_tipo ADD VALUE 'pagamento_companhia'`.
-- `ALTER TABLE companhias_aereas ADD COLUMN modo text DEFAULT 'saldo' CHECK (modo IN ('saldo','credito'))`.
-- Atualizar trigger `registar_carregamento_por_saldo_companhia`: ignorar quando `modo='credito'` (não debita circulante nem cria movimento de carregamento).
-- Atualizar trigger `aplicar_movimentacao` para tratar `pagamento_companhia` (soma ao `companhias_aereas.saldo`, sem tocar em contas).
-- Atualizar `verificar_consistencia_capital` para excluir saldo negativo de companhias `credito` da soma total (representa dívida, não capital).
+**`src/routes/_authenticated/reservas.tsx`**:
+- Botão "Registar mudança" em cada linha de reserva ativa/pendente.
 
-### Frontend
-- `src/components/companhias-editor.tsx`: campo "Modo" (Saldo / Crédito). Ocultar saldo/alerta quando crédito.
-- `src/routes/_authenticated/capital.tsx`: nova aba "Dívidas a companhias" + botão "Exportar PDF" na aba Dívidas.
-- `src/routes/_authenticated/bilhetes.tsx`: dropdown de companhias mostra `[Crédito]` ao lado do nome quando aplicável.
-- `src/lib/capital.ts`: label para `pagamento_companhia`.
+**`src/routes/_authenticated/bilhetes.tsx`**:
+- Botão "Registar mudança" em cada bilhete não cancelado.
+- Mostrar badge "N mudanças" quando `taxa_mudancas_total > 0`.
+- Ao expandir bilhete: lista de mudanças (rota antiga → nova, taxa, data, responsável).
 
-### Dependências
-- `bun add jspdf jspdf-autotable`.
+**`src/routes/_authenticated/capital.tsx`**:
+- Nova aba "Mudanças de rota" com tabela: data, cliente, bilhete/reserva, rota antiga → nova, taxa, responsável.
+- Total acumulado de taxas de mudança no topo.
 
-## Fora do âmbito
-- Filtros do PDF (o utilizador confirmou que ficam só no ecrã).
-- Pagamento de dívida a companhia via Capital Circulante.
+**`src/lib/pdf-dividas.ts`**:
+- Para cada bilhete em dívida, se `taxa_mudancas_total > 0`, mostrar coluna extra ou linha de detalhe com "Mudanças: N (taxa X)".
+
+### 3. Regras confirmadas
+
+- Registar em reservas ativas E bilhetes emitidos.
+- Taxa manual por mudança (o vendedor escreve).
+- Aumenta valor em dívida do cliente E vai para Fundo de Lucro quando pago (via rateio existente).
+- Histórico visível em aba no Capital + no detalhe do bilhete + no PDF de dívidas.
