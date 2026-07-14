@@ -215,6 +215,7 @@ function ReservasPage() {
     },
   });
   const [emitTarget, setEmitTarget] = useState<any | null>(null);
+  const [mudancaTarget, setMudancaTarget] = useState<MudancaTarget | null>(null);
   const [emitForm, setEmitForm] = useState({
     companhia_id: "",
     custo: 0,
