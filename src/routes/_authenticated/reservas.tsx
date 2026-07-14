@@ -260,6 +260,12 @@ function ReservasPage() {
         .update({ status: "emitida", bilhete_id: (novo as any).id })
         .eq("id", emitTarget.id);
       if (e2) throw e2;
+      // Transfere mudanças de rota pendentes (registadas ainda na reserva) para o novo bilhete
+      await (supabase as any)
+        .from("mudancas_rota")
+        .update({ bilhete_id: (novo as any).id })
+        .eq("reserva_id", emitTarget.id)
+        .is("bilhete_id", null);
     },
     onSuccess: () => {
       toast.success("Bilhete emitido — companhia debitada");
