@@ -56,8 +56,10 @@ import {
   CalendarClock,
   Printer,
   Receipt,
+  Route as RouteIcon,
 } from "lucide-react";
 import { PrintDocDialog, type PrintDocType, type PrintDocData } from "@/components/print/PrintDocDialog";
+import { MudancaRotaDialog, type MudancaTarget } from "@/components/mudanca-rota-dialog";
 import { toast } from "sonner";
 
 
