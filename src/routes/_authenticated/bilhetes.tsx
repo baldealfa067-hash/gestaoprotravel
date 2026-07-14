@@ -978,6 +978,26 @@ function BilhetesPage() {
                               <CalendarClock className="h-4 w-4 mr-2" /> Criar reserva
                             </DropdownMenuItem>
                           )}
+                          {!cancelado && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setMudancaTarget({
+                                  type: "bilhete",
+                                  row: {
+                                    id: b.id,
+                                    cliente_id: b.cliente_id,
+                                    origem: b.origem,
+                                    destino: b.destino,
+                                    classe: b.classe,
+                                    data_viagem: b.data_viagem,
+                                    cliente: b.cliente,
+                                  },
+                                })
+                              }
+                            >
+                              <RouteIcon className="h-4 w-4 mr-2" /> Registar mudança de rota
+                            </DropdownMenuItem>
+                          )}
 
 
 
