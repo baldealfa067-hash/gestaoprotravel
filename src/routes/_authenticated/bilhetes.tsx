@@ -1248,6 +1248,8 @@ function BilhetesPage() {
         type={printState?.type ?? "bilhete"}
         data={printState?.data ?? null}
       />
+
+      <MudancaRotaDialog target={mudancaTarget} onClose={() => setMudancaTarget(null)} />
     </div>
   );
 }
