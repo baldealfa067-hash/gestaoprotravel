@@ -653,6 +653,26 @@ function ReservasPage() {
                           <DropdownMenuItem onClick={() => openEdit(r)}>
                             <Clock className="h-4 w-4 mr-2" /> Editar prazo / dados
                           </DropdownMenuItem>
+                          {r.status === "ativa" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setMudancaTarget({
+                                  type: r.bilhete_id ? "bilhete" : "reserva",
+                                  row: {
+                                    id: r.bilhete_id ?? r.id,
+                                    cliente_id: r.cliente_id,
+                                    origem: r.origem,
+                                    destino: r.destino,
+                                    classe: r.classe,
+                                    data_viagem: r.data_viagem,
+                                    cliente: r.cliente,
+                                  },
+                                })
+                              }
+                            >
+                              <RouteIcon className="h-4 w-4 mr-2" /> Mudança de rota
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
