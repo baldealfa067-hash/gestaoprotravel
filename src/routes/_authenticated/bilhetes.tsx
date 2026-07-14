@@ -267,6 +267,7 @@ function BilhetesPage() {
 
   // estado do diálogo "criar reserva a partir do bilhete"
   const [reservaTarget, setReservaTarget] = useState<any | null>(null);
+  const [mudancaTarget, setMudancaTarget] = useState<MudancaTarget | null>(null);
 
   // impressão
   const [printState, setPrintState] = useState<{ type: PrintDocType; data: PrintDocData } | null>(null);
