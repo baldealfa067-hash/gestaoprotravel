@@ -46,11 +46,13 @@ import {
   MoreHorizontal,
   Phone,
   Plus,
+  Route as RouteIcon,
   Search,
   Send,
   Ticket,
   XCircle,
 } from "lucide-react";
+import { MudancaRotaDialog, type MudancaTarget } from "@/components/mudanca-rota-dialog";
 
 import { toast } from "sonner";
 import { formatDate, formatDateTime, formatCurrency } from "@/lib/format";
