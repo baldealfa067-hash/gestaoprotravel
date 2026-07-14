@@ -79,6 +79,7 @@ export type Database = {
           pnr: string | null
           status: Database["public"]["Enums"]["ticket_status"]
           taxa_agencia: number
+          taxa_mudancas_total: number
           updated_at: string
           valor_cobrado: number
           vendedor_id: string
@@ -102,6 +103,7 @@ export type Database = {
           pnr?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
           taxa_agencia?: number
+          taxa_mudancas_total?: number
           updated_at?: string
           valor_cobrado?: number
           vendedor_id: string
@@ -125,6 +127,7 @@ export type Database = {
           pnr?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
           taxa_agencia?: number
+          taxa_mudancas_total?: number
           updated_at?: string
           valor_cobrado?: number
           vendedor_id?: string
@@ -355,6 +358,82 @@ export type Database = {
             columns: ["conta_origem_id"]
             isOneToOne: false
             referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mudancas_rota: {
+        Row: {
+          bilhete_id: string | null
+          classe_antiga: Database["public"]["Enums"]["bilhete_classe"] | null
+          classe_nova: Database["public"]["Enums"]["bilhete_classe"] | null
+          cliente_id: string | null
+          created_at: string
+          data_viagem_antiga: string | null
+          data_viagem_nova: string | null
+          id: string
+          motivo: string | null
+          reserva_id: string | null
+          responsavel_id: string | null
+          rota_antiga: string | null
+          rota_nova: string | null
+          taxa_mudanca: number
+          updated_at: string
+        }
+        Insert: {
+          bilhete_id?: string | null
+          classe_antiga?: Database["public"]["Enums"]["bilhete_classe"] | null
+          classe_nova?: Database["public"]["Enums"]["bilhete_classe"] | null
+          cliente_id?: string | null
+          created_at?: string
+          data_viagem_antiga?: string | null
+          data_viagem_nova?: string | null
+          id?: string
+          motivo?: string | null
+          reserva_id?: string | null
+          responsavel_id?: string | null
+          rota_antiga?: string | null
+          rota_nova?: string | null
+          taxa_mudanca: number
+          updated_at?: string
+        }
+        Update: {
+          bilhete_id?: string | null
+          classe_antiga?: Database["public"]["Enums"]["bilhete_classe"] | null
+          classe_nova?: Database["public"]["Enums"]["bilhete_classe"] | null
+          cliente_id?: string | null
+          created_at?: string
+          data_viagem_antiga?: string | null
+          data_viagem_nova?: string | null
+          id?: string
+          motivo?: string | null
+          reserva_id?: string | null
+          responsavel_id?: string | null
+          rota_antiga?: string | null
+          rota_nova?: string | null
+          taxa_mudanca?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mudancas_rota_bilhete_id_fkey"
+            columns: ["bilhete_id"]
+            isOneToOne: false
+            referencedRelation: "bilhetes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mudancas_rota_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mudancas_rota_reserva_id_fkey"
+            columns: ["reserva_id"]
+            isOneToOne: false
+            referencedRelation: "reservas"
             referencedColumns: ["id"]
           },
         ]
