@@ -1126,8 +1126,7 @@ function DividasCompanhiasSection({ currency }: { currency: string }) {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={divida <= 0}
-                      onClick={() => { setPayFor(c); setValor(String(divida)); setObs(""); }}
+                      onClick={() => { setPayFor(c); setValor(divida > 0 ? String(divida) : ""); setObs(""); }}
                     >
                       Registar pagamento
                     </Button>
