@@ -801,6 +801,7 @@ function ReservasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <MudancaRotaDialog target={mudancaTarget} onClose={() => setMudancaTarget(null)} />
     </div>
   );
 }
