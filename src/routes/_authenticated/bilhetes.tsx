@@ -909,6 +909,11 @@ function BilhetesPage() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-semibold">
                       {formatCurrency(b.valor_cobrado, currency)}
+                      {Number(b.taxa_mudancas_total ?? 0) > 0 && (
+                        <div className="text-[10px] font-normal text-warning">
+                          + {formatCurrency(b.taxa_mudancas_total, currency)} mudanças
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge className={STATUS_BADGE[b.status as TicketStatus]} variant="outline">
