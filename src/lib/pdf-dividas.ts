@@ -5,7 +5,6 @@ import { formatCurrency, formatDate } from "@/lib/format";
 
 type Row = {
   data_viagem: string | null;
-  created_at: string;
   cliente: string;
   origem: string;
   destino: string;
@@ -22,27 +21,32 @@ type Row = {
 type DividaCompanhia = {
   nome: string;
   codigo: string | null;
-  saldo: number;
   divida: number;
   bilhetes: number;
   ultimo: string | null;
 };
 
-// Layout constants (mm, A4 landscape 297x210)
-const MARGIN = 12;
+// A4 landscape 297x210
+const MARGIN = 10;
 const PAGE_W = 297;
 const PAGE_H = 210;
-const HEADER_H = 26;
-const FOOTER_H = 10;
-const CONTENT_TOP = HEADER_H + 4;
-const CONTENT_BOTTOM = PAGE_H - FOOTER_H;
-const BRAND: [number, number, number] = [30, 64, 175];
+
+// Sanitize strings: helvetica (WinAnsi) doesn't render narrow/non-break spaces
+// that Intl.NumberFormat inserts between digits/currency → shows as "&".
+const clean = (s: string | number | null | undefined): string =>
+  String(s ?? "")
+    .replace(/\u202F/g, " ")
+    .replace(/\u00A0/g, " ")
+    .replace(/\u2009/g, " ")
+    .replace(/\u2013|\u2014/g, "-");
+
+const money = (v: number, c: string) => clean(formatCurrency(v, c));
 
 async function fetchDividasClientes(): Promise<Row[]> {
   const { data: bilhetes, error } = await (supabase as any)
     .from("bilhetes")
     .select(
-      "id, data_viagem, created_at, valor_cobrado, custo, taxa_agencia, classe, origem, destino, companhia, status, cliente:cliente_id(full_name)",
+      "id, data_viagem, valor_cobrado, custo, taxa_agencia, classe, origem, destino, companhia, status, cliente:cliente_id(full_name)",
     )
     .in("status", ["emitido", "pendente", "pedido_criado", "pago"])
     .order("data_viagem", { ascending: true, nullsFirst: false });
@@ -70,7 +74,6 @@ async function fetchDividasClientes(): Promise<Row[]> {
     else if (pago > 0) situacao = "parcial";
     return {
       data_viagem: b.data_viagem,
-      created_at: b.created_at,
       cliente: b.cliente?.full_name ?? "—",
       origem: b.origem ?? "",
       destino: b.destino ?? "",
@@ -109,17 +112,18 @@ async function fetchDividasCompanhias(): Promise<DividaCompanhia[]> {
     counts[m.companhia_id] = (counts[m.companhia_id] ?? 0) + 1;
   }
 
-  return rows.map((r) => {
-    const saldo = Number(r.saldo ?? 0);
-    return {
-      nome: r.nome,
-      codigo: r.codigo,
-      saldo,
-      divida: saldo < 0 ? -saldo : 0,
-      bilhetes: counts[r.id] ?? 0,
-      ultimo: r.ultimo_consumo,
-    };
-  });
+  return rows
+    .map((r) => {
+      const saldo = Number(r.saldo ?? 0);
+      return {
+        nome: r.nome,
+        codigo: r.codigo,
+        divida: saldo < 0 ? -saldo : 0,
+        bilhetes: counts[r.id] ?? 0,
+        ultimo: r.ultimo_consumo,
+      };
+    })
+    .filter((r) => r.divida > 0);
 }
 
 export async function exportarDividasPDF(opts: {
@@ -136,284 +140,211 @@ export async function exportarDividasPDF(opts: {
   const now = new Date();
   const emissao = now.toLocaleString("pt-PT");
 
-  let logoData: string | null = null;
-  if (opts.logoUrl) {
-    logoData = await toDataUrl(opts.logoUrl).catch(() => null);
-  }
-
-  const drawHeader = () => {
-    // Faixa superior
-    doc.setFillColor(...BRAND);
-    doc.rect(0, 0, PAGE_W, HEADER_H, "F");
-
-    if (logoData) {
-      try { doc.addImage(logoData, "PNG", MARGIN, 4, 18, 18); } catch { /* ignore */ }
-    }
-    const textX = logoData ? MARGIN + 22 : MARGIN;
-    doc.setTextColor(255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(opts.agencyName || "Agência", textX, 12);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text("Relatório de Dívidas", textX, 18);
-
-    doc.setFontSize(8);
-    doc.text(`Emitido: ${emissao}`, PAGE_W - MARGIN, 10, { align: "right" });
-    doc.text(`Moeda: ${opts.currency}`, PAGE_W - MARGIN, 15, { align: "right" });
-
-    // reset
-    doc.setTextColor(0);
-  };
-
-  const drawFooter = (pageNum: number, pageCount: number) => {
-    doc.setDrawColor(220);
-    doc.setLineWidth(0.2);
-    doc.line(MARGIN, PAGE_H - FOOTER_H + 2, PAGE_W - MARGIN, PAGE_H - FOOTER_H + 2);
-    doc.setFontSize(8);
-    doc.setTextColor(130);
-    doc.text(
-      `${opts.agencyName} — Relatório de Dívidas`,
-      MARGIN,
-      PAGE_H - 3,
-    );
-    doc.text(
-      `Página ${pageNum} de ${pageCount}`,
-      PAGE_W - MARGIN,
-      PAGE_H - 3,
-      { align: "right" },
-    );
-    doc.setTextColor(0);
-  };
-
-  // Helper — ensure a block of `neededMm` fits; otherwise new page.
-  const ensureSpace = (cursorY: number, neededMm: number): number => {
-    if (cursorY + neededMm > CONTENT_BOTTOM) {
-      doc.addPage();
-      return CONTENT_TOP;
-    }
-    return cursorY;
-  };
-
-  // ── Header + resumo geral (página 1) ─────────────────────────────────
-  drawHeader();
-  let y = CONTENT_TOP;
-
   const naoPagos = clientes.filter((r) => r.situacao === "nao_pago");
   const parciais = clientes.filter((r) => r.situacao === "parcial");
-  const pagos = clientes.filter((r) => r.situacao === "pago");
   const totNaoPagos = naoPagos.reduce((s, r) => s + r.restante, 0);
   const totParciais = parciais.reduce((s, r) => s + r.restante, 0);
   const totClientes = totNaoPagos + totParciais;
   const totCiasDivida = cias.reduce((s, r) => s + r.divida, 0);
   const totalGeral = totClientes + totCiasDivida;
 
-  // Cartões-resumo
-  const cardW = (PAGE_W - MARGIN * 2 - 6 * 3) / 4;
-  const cardH = 20;
-  const cards: Array<[string, string, [number, number, number]]> = [
-    ["Sem pagamento", `${naoPagos.length}   ·   ${formatCurrency(totNaoPagos, opts.currency)}`, [220, 38, 38]],
-    ["Pagamento parcial", `${parciais.length}   ·   ${formatCurrency(totParciais, opts.currency)}`, [37, 99, 235]],
-    ["Dívida a companhias", `${cias.length}   ·   ${formatCurrency(totCiasDivida, opts.currency)}`, [217, 119, 6]],
-    ["Total geral em dívida", formatCurrency(totalGeral, opts.currency), [17, 94, 89]],
-  ];
-  cards.forEach(([title, value, color], i) => {
-    const x = MARGIN + i * (cardW + 6);
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(x, y, cardW, cardH, 2, 2, "FD");
-    doc.setFillColor(...color);
-    doc.rect(x, y, 2, cardH, "F");
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    doc.text(title, x + 5, y + 6);
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...color);
-    doc.text(value, x + 5, y + 14);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(0);
-  });
-  y += cardH + 6;
+  // ── Cabeçalho simples ──────────────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text(clean(opts.agencyName || "Agência"), MARGIN, 12);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  doc.text("Relatório de Dívidas", MARGIN, 18);
 
-  // ── Secção helper ────────────────────────────────────────────────────
+  doc.setFontSize(9);
+  doc.text(`Emitido: ${clean(emissao)}`, PAGE_W - MARGIN, 12, { align: "right" });
+  doc.text(`Moeda: ${clean(opts.currency)}`, PAGE_W - MARGIN, 18, { align: "right" });
+
+  doc.setDrawColor(180);
+  doc.setLineWidth(0.3);
+  doc.line(MARGIN, 22, PAGE_W - MARGIN, 22);
+
+  // ── Resumo em texto ────────────────────────────────────────────────
+  let y = 28;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Resumo", MARGIN, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const resumo = [
+    `Sem pagamento: ${naoPagos.length} bilhete(s) — ${money(totNaoPagos, opts.currency)}`,
+    `Pagamento parcial: ${parciais.length} bilhete(s) — ${money(totParciais, opts.currency)}`,
+    `Dívida a companhias intermediárias: ${cias.length} — ${money(totCiasDivida, opts.currency)}`,
+    `TOTAL GERAL EM DÍVIDA: ${money(totalGeral, opts.currency)}`,
+  ];
+  resumo.forEach((line, i) => {
+    if (i === 3) doc.setFont("helvetica", "bold");
+    doc.text(clean(line), MARGIN, y);
+    y += 5;
+  });
+  doc.setFont("helvetica", "normal");
+  y += 3;
+
+  // ── Helper de secção ───────────────────────────────────────────────
+  const drawSection = (title: string) => {
+    if (y > PAGE_H - 40) { doc.addPage(); y = MARGIN + 4; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(clean(title), MARGIN, y);
+    y += 3;
+    doc.setDrawColor(80);
+    doc.setLineWidth(0.4);
+    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+    y += 3;
+    doc.setFont("helvetica", "normal");
+  };
+
   const clientHead = [[
     "Data viagem", "Cliente", "Rota", "Classe", "Companhia",
     "Preço", "Taxa", "Total", "Pago", "Em dívida",
   ]];
   const clientBody = (rows: Row[]) => rows.map((r) => [
-    r.data_viagem ? formatDate(r.data_viagem) : "—",
-    r.cliente,
-    `${r.origem} → ${r.destino}`,
+    clean(r.data_viagem ? formatDate(r.data_viagem) : "—"),
+    clean(r.cliente),
+    clean(`${r.origem} -> ${r.destino}`),
     r.classe === "executiva" ? "Executiva" : "Económica",
-    r.companhia,
-    formatCurrency(r.custo, opts.currency),
-    formatCurrency(r.taxa, opts.currency),
-    formatCurrency(r.total, opts.currency),
-    formatCurrency(r.pago, opts.currency),
-    formatCurrency(r.restante, opts.currency),
+    clean(r.companhia),
+    money(r.custo, opts.currency),
+    money(r.taxa, opts.currency),
+    money(r.total, opts.currency),
+    money(r.pago, opts.currency),
+    money(r.restante, opts.currency),
   ]);
 
-  const drawSectionTitle = (title: string, subtitle: string, cursorY: number) => {
-    let cy = ensureSpace(cursorY, 12);
-    doc.setFillColor(...BRAND);
-    doc.rect(MARGIN, cy, 3, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(30, 41, 59);
-    doc.text(title, MARGIN + 6, cy + 5);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(120);
-    doc.text(subtitle, PAGE_W - MARGIN, cy + 5, { align: "right" });
-    doc.setTextColor(0);
-    return cy + 9;
+  // widths sum = 277mm (page 297 - margins 2*10)
+  const clientColStyles: any = {
+    0: { cellWidth: 20 },
+    1: { cellWidth: 42 },
+    2: { cellWidth: 42 },
+    3: { cellWidth: 18 },
+    4: { cellWidth: 30 },
+    5: { halign: "right", cellWidth: 24 },
+    6: { halign: "right", cellWidth: 22 },
+    7: { halign: "right", cellWidth: 26 },
+    8: { halign: "right", cellWidth: 24 },
+    9: { halign: "right", cellWidth: 29, fontStyle: "bold" },
   };
 
-  const drawClientTable = (rows: Row[], subtotal: number, cursorY: number) => {
+  const drawClientTable = (rows: Row[], subtotal: number) => {
     autoTable(doc, {
-      startY: cursorY,
-      margin: { left: MARGIN, right: MARGIN, top: CONTENT_TOP, bottom: FOOTER_H + 4 },
+      startY: y,
+      margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 6 },
       head: clientHead,
       body: clientBody(rows),
       foot: [[
         { content: "Subtotal em dívida", colSpan: 9, styles: { halign: "right", fontStyle: "bold" } },
-        { content: formatCurrency(subtotal, opts.currency), styles: { fontStyle: "bold", halign: "right" } },
+        { content: money(subtotal, opts.currency), styles: { halign: "right", fontStyle: "bold" } },
       ]],
-      styles: { fontSize: 8, cellPadding: 1.8, overflow: "linebreak", valign: "middle" },
-      headStyles: { fillColor: BRAND, textColor: 255, fontStyle: "bold" },
-      footStyles: { fillColor: [241, 245, 249], textColor: 15 },
-      alternateRowStyles: { fillColor: [250, 250, 252] },
-      columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 40 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 32 },
-        5: { halign: "right", cellWidth: 24 },
-        6: { halign: "right", cellWidth: 22 },
-        7: { halign: "right", cellWidth: 26 },
-        8: { halign: "right", cellWidth: 24 },
-        9: { halign: "right", cellWidth: 26, textColor: [220, 38, 38], fontStyle: "bold" },
-      },
-      didDrawPage: () => { drawHeader(); },
+      styles: { fontSize: 8, cellPadding: 1.6, overflow: "linebreak", valign: "middle", lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: [235, 235, 235], textColor: 0, fontStyle: "bold", lineColor: [180, 180, 180] },
+      footStyles: { fillColor: [245, 245, 245], textColor: 0 },
+      columnStyles: clientColStyles,
+      theme: "grid",
     });
     // @ts-ignore
-    return (doc as any).lastAutoTable.finalY + 6;
+    y = (doc as any).lastAutoTable.finalY + 8;
   };
 
-  // Secção 1
-  y = drawSectionTitle(
-    "1. Clientes sem pagamento",
-    `${naoPagos.length} bilhete(s) · ${formatCurrency(totNaoPagos, opts.currency)}`,
-    y,
-  );
+  // ── 1. Sem pagamento ───────────────────────────────────────────────
+  drawSection("1. Clientes sem pagamento");
   if (naoPagos.length) {
-    y = drawClientTable(naoPagos, totNaoPagos, y);
+    drawClientTable(naoPagos, totNaoPagos);
   } else {
-    doc.setFontSize(9); doc.setTextColor(120);
-    doc.text("Nenhum bilhete sem pagamento.", MARGIN, y + 4);
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text("Nenhum bilhete sem pagamento.", MARGIN, y + 2);
     doc.setTextColor(0);
     y += 10;
   }
 
-  // Secção 2
-  y = drawSectionTitle(
-    "2. Clientes com pagamento parcial",
-    `${parciais.length} bilhete(s) · ${formatCurrency(totParciais, opts.currency)}`,
-    y,
-  );
+  // ── 2. Parcial ─────────────────────────────────────────────────────
+  drawSection("2. Clientes com pagamento parcial");
   if (parciais.length) {
-    y = drawClientTable(parciais, totParciais, y);
+    drawClientTable(parciais, totParciais);
   } else {
-    doc.setFontSize(9); doc.setTextColor(120);
-    doc.text("Nenhum pagamento parcial.", MARGIN, y + 4);
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text("Nenhum pagamento parcial.", MARGIN, y + 2);
     doc.setTextColor(0);
     y += 10;
   }
 
-  // Secção 3 — Companhias intermediárias
-  y = drawSectionTitle(
-    "3. Dívidas a companhias intermediárias",
-    `${cias.length} companhia(s) · ${formatCurrency(totCiasDivida, opts.currency)}`,
-    y,
-  );
+  // ── 3. Companhias intermediárias ───────────────────────────────────
+  drawSection("3. Dívidas a companhias intermediárias");
   if (cias.length) {
     autoTable(doc, {
       startY: y,
-      margin: { left: MARGIN, right: MARGIN, top: CONTENT_TOP, bottom: FOOTER_H + 4 },
+      margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 6 },
       head: [["Companhia", "Código", "Nº bilhetes", "Último uso", "Total devido"]],
       body: cias.map((c) => [
-        c.nome,
-        c.codigo ?? "—",
+        clean(c.nome),
+        clean(c.codigo ?? "—"),
         String(c.bilhetes),
-        c.ultimo ? formatDate(c.ultimo) : "—",
-        formatCurrency(c.divida, opts.currency),
+        clean(c.ultimo ? formatDate(c.ultimo) : "—"),
+        money(c.divida, opts.currency),
       ]),
       foot: [[
         { content: "Subtotal dívida a companhias", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
-        { content: formatCurrency(totCiasDivida, opts.currency), styles: { fontStyle: "bold", halign: "right" } },
+        { content: money(totCiasDivida, opts.currency), styles: { halign: "right", fontStyle: "bold" } },
       ]],
-      styles: { fontSize: 9, cellPadding: 2.2, valign: "middle" },
-      headStyles: { fillColor: BRAND, textColor: 255, fontStyle: "bold" },
-      footStyles: { fillColor: [241, 245, 249], textColor: 15 },
-      alternateRowStyles: { fillColor: [250, 250, 252] },
+      styles: { fontSize: 9, cellPadding: 2, valign: "middle", lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: [235, 235, 235], textColor: 0, fontStyle: "bold" },
+      footStyles: { fillColor: [245, 245, 245], textColor: 0 },
       columnStyles: {
-        2: { halign: "right" },
-        4: { halign: "right", textColor: [217, 119, 6], fontStyle: "bold" },
+        0: { cellWidth: 80 },
+        1: { cellWidth: 40 },
+        2: { halign: "right", cellWidth: 40 },
+        3: { cellWidth: 60 },
+        4: { halign: "right", cellWidth: 57, fontStyle: "bold" },
       },
-      didDrawPage: () => { drawHeader(); },
+      theme: "grid",
     });
     // @ts-ignore
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = (doc as any).lastAutoTable.finalY + 8;
   } else {
-    doc.setFontSize(9); doc.setTextColor(120);
-    doc.text("Nenhuma companhia intermediária com dívida.", MARGIN, y + 4);
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text("Nenhuma companhia intermediária com dívida.", MARGIN, y + 2);
     doc.setTextColor(0);
     y += 10;
   }
 
-  // Bloco final — total geral
-  y = ensureSpace(y, 22);
-  doc.setFillColor(...BRAND);
-  doc.roundedRect(MARGIN, y, PAGE_W - MARGIN * 2, 16, 2, 2, "F");
-  doc.setTextColor(255);
+  // ── Total final ────────────────────────────────────────────────────
+  if (y > PAGE_H - 20) { doc.addPage(); y = MARGIN + 4; }
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 6;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("TOTAL GERAL EM DÍVIDA", MARGIN + 6, y + 7);
-  doc.setFontSize(14);
-  doc.text(formatCurrency(totalGeral, opts.currency), PAGE_W - MARGIN - 6, y + 8, { align: "right" });
+  doc.text("TOTAL GERAL EM DÍVIDA", MARGIN, y);
+  doc.text(money(totalGeral, opts.currency), PAGE_W - MARGIN, y, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
+  doc.setTextColor(100);
+  y += 5;
   doc.text(
-    `Clientes: ${formatCurrency(totClientes, opts.currency)}   ·   Companhias: ${formatCurrency(totCiasDivida, opts.currency)}   ·   Pagos: ${pagos.length}`,
-    MARGIN + 6,
-    y + 13,
+    clean(`Clientes: ${money(totClientes, opts.currency)}   ·   Companhias: ${money(totCiasDivida, opts.currency)}`),
+    MARGIN, y,
   );
   doc.setTextColor(0);
 
-  // Rodapé com paginação em todas as páginas
+  // ── Rodapé com paginação ──────────────────────────────────────────
   const total = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
-    drawFooter(i, total);
+    doc.setFontSize(8);
+    doc.setTextColor(130);
+    doc.text(clean(`${opts.agencyName} — Relatório de Dívidas`), MARGIN, PAGE_H - 4);
+    doc.text(`Página ${i} de ${total}`, PAGE_W - MARGIN, PAGE_H - 4, { align: "right" });
+    doc.setTextColor(0);
   }
 
-  const fileName = `dividas-${now.toISOString().slice(0, 10)}.pdf`;
-  doc.save(fileName);
-}
-
-async function toDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result as string);
-      r.onerror = reject;
-      r.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
+  doc.save(`dividas-${now.toISOString().slice(0, 10)}.pdf`);
 }

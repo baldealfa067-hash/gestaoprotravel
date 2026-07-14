@@ -205,7 +205,7 @@ function ReservasPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companhias_aereas")
-        .select("id, nome, saldo, ativa")
+        .select("id, nome, saldo, ativa, modo")
         .eq("ativa", true)
         .order("nome");
       if (error) throw error;
@@ -227,7 +227,8 @@ function ReservasPage() {
       if (!emitForm.companhia_id) throw new Error("Selecione a companhia");
       if (emitForm.custo <= 0) throw new Error("Custo deve ser maior que zero");
       const cia = companhias.find((c: any) => c.id === emitForm.companhia_id);
-      if (cia && Number(cia.saldo) < emitForm.custo) {
+      // Companhias em modo Crédito (intermediárias) não precisam de saldo — geram dívida.
+      if (cia && cia.modo !== "credito" && Number(cia.saldo) < emitForm.custo) {
         throw new Error(
           `Saldo da ${cia.nome} (${formatCurrency(cia.saldo, currency)}) é menor que o custo do bilhete.`,
         );
