@@ -205,7 +205,7 @@ function ReservasPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companhias_aereas")
-        .select("id, nome, saldo, ativa")
+        .select("id, nome, saldo, ativa, modo")
         .eq("ativa", true)
         .order("nome");
       if (error) throw error;
