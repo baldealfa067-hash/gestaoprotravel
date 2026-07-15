@@ -477,10 +477,55 @@ function BilhetesPage() {
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
       qc.invalidateQueries({ queryKey: ["capital-dividas-lista"] });
       qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos-por-bilhete"] });
       setPayTarget(null);
       setPayContaId("");
       setPayValor(0);
       setPayJaPago(0);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const registarPagamentoTaxaMud = useMutation({
+    mutationFn: async ({ b, valor }: { b: any; valor: number }) => {
+      if (!valor || valor <= 0) throw new Error("Informe um valor válido");
+      const totalTaxa = Number(b.taxa_mudancas_total || 0);
+      const { data: pagosMovs } = await (supabase as any)
+        .from("movimentacoes_capital")
+        .select("valor")
+        .eq("tipo", "pagamento_taxa_mudanca")
+        .eq("bilhete_id", b.id);
+      const jaPago = (pagosMovs ?? []).reduce((s: number, m: any) => s + Number(m.valor), 0);
+      const restante = Math.max(0, totalTaxa - jaPago);
+      if (valor > restante + 0.01) {
+        throw new Error(`Valor superior ao restante da taxa (${restante.toFixed(2)})`);
+      }
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await (supabase as any).from("movimentacoes_capital").insert({
+        tipo: "pagamento_taxa_mudanca",
+        cliente_id: b.cliente_id,
+        bilhete_id: b.id,
+        valor,
+        referencia: b.pnr || null,
+        observacao:
+          valor + 0.01 >= restante
+            ? `Pagamento total da taxa de mudança`
+            : `Pagamento parcial da taxa de mudança`,
+        responsavel_id: u.user!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Taxa de mudança paga — valor enviado ao Fundo de Lucro");
+      qc.invalidateQueries({ queryKey: ["bilhetes"] });
+      qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["capital-dividas-lista"] });
+      qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos-taxa-mudanca-por-bilhete"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos-por-bilhete"] });
+      setPayTaxaTarget(null);
+      setPayTaxaValor(0);
+      setPayTaxaJaPago(0);
     },
     onError: (e: Error) => toast.error(e.message),
   });
