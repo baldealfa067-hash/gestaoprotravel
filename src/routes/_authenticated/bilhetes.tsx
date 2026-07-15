@@ -1081,7 +1081,30 @@ function BilhetesPage() {
                             </DropdownMenuItem>
                           )}
 
-
+                          {!cancelado && taxaMudInfo.aReceber && (
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const { data: movs } = await (supabase as any)
+                                  .from("movimentacoes_capital")
+                                  .select("valor")
+                                  .eq("tipo", "pagamento_taxa_mudanca")
+                                  .eq("bilhete_id", b.id);
+                                const jaPago = (movs ?? []).reduce(
+                                  (s: number, m: any) => s + Number(m.valor),
+                                  0,
+                                );
+                                const restante = Math.max(
+                                  0,
+                                  Number(b.taxa_mudancas_total || 0) - jaPago,
+                                );
+                                setPayTaxaTarget(b);
+                                setPayTaxaJaPago(jaPago);
+                                setPayTaxaValor(restante);
+                              }}
+                            >
+                              <RouteIcon className="h-4 w-4 mr-2" /> Pagar taxa de mudança
+                            </DropdownMenuItem>
+                          )}
 
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openPrint(b, "bilhete")}>
