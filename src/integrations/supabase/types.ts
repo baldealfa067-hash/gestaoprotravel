@@ -636,6 +636,7 @@ export type Database = {
         | "transferencia_interna"
         | "aporte_capital"
         | "pagamento_companhia"
+        | "pagamento_taxa_mudanca"
       ticket_status:
         | "pedido_criado"
         | "pendente"
@@ -782,6 +783,7 @@ export const Constants = {
         "transferencia_interna",
         "aporte_capital",
         "pagamento_companhia",
+        "pagamento_taxa_mudanca",
       ],
       ticket_status: [
         "pedido_criado",

@@ -95,6 +95,8 @@ export function MudancaRotaDialog({
       qc.invalidateQueries({ queryKey: ["reservas"] });
       qc.invalidateQueries({ queryKey: ["mudancas-rota"] });
       qc.invalidateQueries({ queryKey: ["mudancas-por-bilhete"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos-por-bilhete"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos-taxa-mudanca-por-bilhete"] });
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
       qc.invalidateQueries({ queryKey: ["capital-dividas-lista"] });
       onClose();

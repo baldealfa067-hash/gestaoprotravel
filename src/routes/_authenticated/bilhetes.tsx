@@ -150,6 +150,11 @@ function BilhetesPage() {
   const [payValor, setPayValor] = useState<number>(0);
   const [payJaPago, setPayJaPago] = useState<number>(0);
 
+  // pagamento de taxa de mudança
+  const [payTaxaTarget, setPayTaxaTarget] = useState<any | null>(null);
+  const [payTaxaValor, setPayTaxaValor] = useState<number>(0);
+  const [payTaxaJaPago, setPayTaxaJaPago] = useState<number>(0);
+
   // emitir dialog
   const [emitTarget, setEmitTarget] = useState<any | null>(null);
 
@@ -239,9 +244,35 @@ function BilhetesPage() {
     refetchInterval: 30_000,
   });
 
+  const { data: pagamentosTaxaMudPorBilhete = {} } = useQuery({
+    queryKey: ["pagamentos-taxa-mudanca-por-bilhete"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("movimentacoes_capital")
+        .select("bilhete_id, valor")
+        .eq("tipo", "pagamento_taxa_mudanca")
+        .not("bilhete_id", "is", null);
+      if (error) throw error;
+      return (data ?? []).reduce((acc: Record<string, number>, m: any) => {
+        acc[m.bilhete_id] = (acc[m.bilhete_id] ?? 0) + Number(m.valor ?? 0);
+        return acc;
+      }, {});
+    },
+    refetchInterval: 30_000,
+  });
+
+  const getTaxaMudInfo = (b: any) => {
+    const total = Number(b.taxa_mudancas_total || 0);
+    const pago = Number((pagamentosTaxaMudPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const restante = Math.max(0, total - pago);
+    return { total, pago, restante, temTaxa: total > 0.01, aReceber: restante > 0.01 };
+  };
+
   const getPaymentInfo = (b: any) => {
     const total = Number(b.valor_cobrado || 0);
-    const pago = Number((pagamentosPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const pagoCliente = Number((pagamentosPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const pagoTaxa = Number((pagamentosTaxaMudPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const pago = pagoCliente + pagoTaxa;
     const restante = Math.max(0, total - pago);
     return {
       total,
@@ -446,10 +477,55 @@ function BilhetesPage() {
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
       qc.invalidateQueries({ queryKey: ["capital-dividas-lista"] });
       qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos-por-bilhete"] });
       setPayTarget(null);
       setPayContaId("");
       setPayValor(0);
       setPayJaPago(0);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const registarPagamentoTaxaMud = useMutation({
+    mutationFn: async ({ b, valor }: { b: any; valor: number }) => {
+      if (!valor || valor <= 0) throw new Error("Informe um valor válido");
+      const totalTaxa = Number(b.taxa_mudancas_total || 0);
+      const { data: pagosMovs } = await (supabase as any)
+        .from("movimentacoes_capital")
+        .select("valor")
+        .eq("tipo", "pagamento_taxa_mudanca")
+        .eq("bilhete_id", b.id);
+      const jaPago = (pagosMovs ?? []).reduce((s: number, m: any) => s + Number(m.valor), 0);
+      const restante = Math.max(0, totalTaxa - jaPago);
+      if (valor > restante + 0.01) {
+        throw new Error(`Valor superior ao restante da taxa (${restante.toFixed(2)})`);
+      }
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await (supabase as any).from("movimentacoes_capital").insert({
+        tipo: "pagamento_taxa_mudanca",
+        cliente_id: b.cliente_id,
+        bilhete_id: b.id,
+        valor,
+        referencia: b.pnr || null,
+        observacao:
+          valor + 0.01 >= restante
+            ? `Pagamento total da taxa de mudança`
+            : `Pagamento parcial da taxa de mudança`,
+        responsavel_id: u.user!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Taxa de mudança paga — valor enviado ao Fundo de Lucro");
+      qc.invalidateQueries({ queryKey: ["bilhetes"] });
+      qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["capital-dividas-lista"] });
+      qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos-taxa-mudanca-por-bilhete"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos-por-bilhete"] });
+      setPayTaxaTarget(null);
+      setPayTaxaValor(0);
+      setPayTaxaJaPago(0);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -879,6 +955,7 @@ function BilhetesPage() {
                 const jaEmitido = emitidosIds.has(b.id) || b.status === "emitido";
                 const cancelado = b.status === "cancelado";
                 const paymentInfo = getPaymentInfo(b);
+                const taxaMudInfo = getTaxaMudInfo(b);
                 return (
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.cliente?.full_name ?? "—"}</TableCell>
@@ -1004,7 +1081,30 @@ function BilhetesPage() {
                             </DropdownMenuItem>
                           )}
 
-
+                          {!cancelado && taxaMudInfo.aReceber && (
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const { data: movs } = await (supabase as any)
+                                  .from("movimentacoes_capital")
+                                  .select("valor")
+                                  .eq("tipo", "pagamento_taxa_mudanca")
+                                  .eq("bilhete_id", b.id);
+                                const jaPago = (movs ?? []).reduce(
+                                  (s: number, m: any) => s + Number(m.valor),
+                                  0,
+                                );
+                                const restante = Math.max(
+                                  0,
+                                  Number(b.taxa_mudancas_total || 0) - jaPago,
+                                );
+                                setPayTaxaTarget(b);
+                                setPayTaxaJaPago(jaPago);
+                                setPayTaxaValor(restante);
+                              }}
+                            >
+                              <RouteIcon className="h-4 w-4 mr-2" /> Pagar taxa de mudança
+                            </DropdownMenuItem>
+                          )}
 
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openPrint(b, "bilhete")}>
@@ -1255,6 +1355,98 @@ function BilhetesPage() {
       />
 
       <MudancaRotaDialog target={mudancaTarget} onClose={() => setMudancaTarget(null)} />
+
+      {/* Pagamento de taxa de mudança */}
+      <Dialog
+        open={!!payTaxaTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPayTaxaTarget(null);
+            setPayTaxaValor(0);
+            setPayTaxaJaPago(0);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pagar taxa de mudança</DialogTitle>
+            <DialogDescription>
+              O valor recebido vai <b>100% para o Fundo de Lucro</b>. Aceita pagamento total ou parcial.
+            </DialogDescription>
+          </DialogHeader>
+          {payTaxaTarget && (() => {
+            const total = Number(payTaxaTarget.taxa_mudancas_total || 0);
+            const restante = Math.max(0, total - payTaxaJaPago);
+            const cobreTudo = payTaxaValor + 0.01 >= restante && payTaxaValor > 0;
+            return (
+              <div className="space-y-3 text-sm">
+                <Row label="Cliente" value={payTaxaTarget.cliente?.full_name ?? "—"} />
+                <Row label="Bilhete" value={`${payTaxaTarget.origem} → ${payTaxaTarget.destino}`} />
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Total taxas</div>
+                    <div className="font-semibold tabular-nums">{formatCurrency(total, currency)}</div>
+                  </div>
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Já pago</div>
+                    <div className="font-semibold tabular-nums text-success">{formatCurrency(payTaxaJaPago, currency)}</div>
+                  </div>
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Restante</div>
+                    <div className="font-semibold tabular-nums text-warning">{formatCurrency(restante, currency)}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Valor a receber agora *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={restante}
+                      step="0.01"
+                      value={payTaxaValor}
+                      onChange={(e) => setPayTaxaValor(Number(e.target.value))}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPayTaxaValor(restante)}>
+                      Total
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPayTaxaValor(Math.round(restante / 2))}>
+                      ½
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {cobreTudo
+                      ? "Este pagamento liquida a taxa de mudança por completo."
+                      : `Após este pagamento restarão ${formatCurrency(restante - payTaxaValor, currency)} de taxa.`}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPayTaxaTarget(null);
+                setPayTaxaValor(0);
+                setPayTaxaJaPago(0);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                payTaxaTarget &&
+                registarPagamentoTaxaMud.mutate({ b: payTaxaTarget, valor: payTaxaValor })
+              }
+              disabled={registarPagamentoTaxaMud.isPending || !payTaxaValor || payTaxaValor <= 0}
+            >
+              Confirmar pagamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
