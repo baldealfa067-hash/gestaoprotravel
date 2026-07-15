@@ -955,6 +955,7 @@ function BilhetesPage() {
                 const jaEmitido = emitidosIds.has(b.id) || b.status === "emitido";
                 const cancelado = b.status === "cancelado";
                 const paymentInfo = getPaymentInfo(b);
+                const taxaMudInfo = getTaxaMudInfo(b);
                 return (
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.cliente?.full_name ?? "—"}</TableCell>
