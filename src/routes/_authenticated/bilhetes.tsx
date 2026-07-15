@@ -244,9 +244,35 @@ function BilhetesPage() {
     refetchInterval: 30_000,
   });
 
+  const { data: pagamentosTaxaMudPorBilhete = {} } = useQuery({
+    queryKey: ["pagamentos-taxa-mudanca-por-bilhete"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("movimentacoes_capital")
+        .select("bilhete_id, valor")
+        .eq("tipo", "pagamento_taxa_mudanca")
+        .not("bilhete_id", "is", null);
+      if (error) throw error;
+      return (data ?? []).reduce((acc: Record<string, number>, m: any) => {
+        acc[m.bilhete_id] = (acc[m.bilhete_id] ?? 0) + Number(m.valor ?? 0);
+        return acc;
+      }, {});
+    },
+    refetchInterval: 30_000,
+  });
+
+  const getTaxaMudInfo = (b: any) => {
+    const total = Number(b.taxa_mudancas_total || 0);
+    const pago = Number((pagamentosTaxaMudPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const restante = Math.max(0, total - pago);
+    return { total, pago, restante, temTaxa: total > 0.01, aReceber: restante > 0.01 };
+  };
+
   const getPaymentInfo = (b: any) => {
     const total = Number(b.valor_cobrado || 0);
-    const pago = Number((pagamentosPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const pagoCliente = Number((pagamentosPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const pagoTaxa = Number((pagamentosTaxaMudPorBilhete as Record<string, number>)[b.id] ?? 0);
+    const pago = pagoCliente + pagoTaxa;
     const restante = Math.max(0, total - pago);
     return {
       total,
