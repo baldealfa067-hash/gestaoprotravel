@@ -150,6 +150,11 @@ function BilhetesPage() {
   const [payValor, setPayValor] = useState<number>(0);
   const [payJaPago, setPayJaPago] = useState<number>(0);
 
+  // pagamento de taxa de mudança
+  const [payTaxaTarget, setPayTaxaTarget] = useState<any | null>(null);
+  const [payTaxaValor, setPayTaxaValor] = useState<number>(0);
+  const [payTaxaJaPago, setPayTaxaJaPago] = useState<number>(0);
+
   // emitir dialog
   const [emitTarget, setEmitTarget] = useState<any | null>(null);
 
