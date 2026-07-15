@@ -1355,6 +1355,98 @@ function BilhetesPage() {
       />
 
       <MudancaRotaDialog target={mudancaTarget} onClose={() => setMudancaTarget(null)} />
+
+      {/* Pagamento de taxa de mudança */}
+      <Dialog
+        open={!!payTaxaTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPayTaxaTarget(null);
+            setPayTaxaValor(0);
+            setPayTaxaJaPago(0);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pagar taxa de mudança</DialogTitle>
+            <DialogDescription>
+              O valor recebido vai <b>100% para o Fundo de Lucro</b>. Aceita pagamento total ou parcial.
+            </DialogDescription>
+          </DialogHeader>
+          {payTaxaTarget && (() => {
+            const total = Number(payTaxaTarget.taxa_mudancas_total || 0);
+            const restante = Math.max(0, total - payTaxaJaPago);
+            const cobreTudo = payTaxaValor + 0.01 >= restante && payTaxaValor > 0;
+            return (
+              <div className="space-y-3 text-sm">
+                <Row label="Cliente" value={payTaxaTarget.cliente?.full_name ?? "—"} />
+                <Row label="Bilhete" value={`${payTaxaTarget.origem} → ${payTaxaTarget.destino}`} />
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Total taxas</div>
+                    <div className="font-semibold tabular-nums">{formatCurrency(total, currency)}</div>
+                  </div>
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Já pago</div>
+                    <div className="font-semibold tabular-nums text-success">{formatCurrency(payTaxaJaPago, currency)}</div>
+                  </div>
+                  <div className="rounded-md border p-2">
+                    <div className="text-muted-foreground">Restante</div>
+                    <div className="font-semibold tabular-nums text-warning">{formatCurrency(restante, currency)}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Valor a receber agora *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={restante}
+                      step="0.01"
+                      value={payTaxaValor}
+                      onChange={(e) => setPayTaxaValor(Number(e.target.value))}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPayTaxaValor(restante)}>
+                      Total
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPayTaxaValor(Math.round(restante / 2))}>
+                      ½
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {cobreTudo
+                      ? "Este pagamento liquida a taxa de mudança por completo."
+                      : `Após este pagamento restarão ${formatCurrency(restante - payTaxaValor, currency)} de taxa.`}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPayTaxaTarget(null);
+                setPayTaxaValor(0);
+                setPayTaxaJaPago(0);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                payTaxaTarget &&
+                registarPagamentoTaxaMud.mutate({ b: payTaxaTarget, valor: payTaxaValor })
+              }
+              disabled={registarPagamentoTaxaMud.isPending || !payTaxaValor || payTaxaValor <= 0}
+            >
+              Confirmar pagamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
