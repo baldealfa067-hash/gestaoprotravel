@@ -49,7 +49,7 @@ async function fetchDividasClientes(): Promise<Row[]> {
   const { data: bilhetes, error } = await (supabase as any)
     .from("bilhetes")
     .select(
-      "id, data_viagem, valor_cobrado, custo, taxa_agencia, classe, origem, destino, companhia, status, cliente:cliente_id(full_name)",
+      "id, data_viagem, valor_cobrado, custo, taxa_agencia, taxa_mudancas_total, classe, origem, destino, companhia, status, cliente:cliente_id(full_name)",
     )
     .in("status", ["emitido", "pendente", "pedido_criado", "pago"])
     .order("data_viagem", { ascending: true, nullsFirst: false });
@@ -57,14 +57,31 @@ async function fetchDividasClientes(): Promise<Row[]> {
 
   const ids = (bilhetes ?? []).map((b: any) => b.id);
   const pagos: Record<string, number> = {};
+  const mudancasPorBilhete: Record<string, Row["mudancas"]> = {};
   if (ids.length) {
-    const { data: movs } = await (supabase as any)
-      .from("movimentacoes_capital")
-      .select("bilhete_id, valor")
-      .eq("tipo", "pagamento_cliente")
-      .in("bilhete_id", ids);
+    const [{ data: movs }, { data: muds }] = await Promise.all([
+      (supabase as any)
+        .from("movimentacoes_capital")
+        .select("bilhete_id, valor, tipo")
+        .in("tipo", ["pagamento_cliente", "pagamento_taxa_mudanca"])
+        .in("bilhete_id", ids),
+      (supabase as any)
+        .from("mudancas_rota")
+        .select("bilhete_id, rota_antiga, rota_nova, taxa_mudanca, created_at")
+        .in("bilhete_id", ids)
+        .order("created_at", { ascending: true }),
+    ]);
     for (const m of movs ?? []) {
       pagos[m.bilhete_id] = (pagos[m.bilhete_id] ?? 0) + Number(m.valor);
+    }
+    for (const m of muds ?? []) {
+      if (!mudancasPorBilhete[m.bilhete_id]) mudancasPorBilhete[m.bilhete_id] = [];
+      mudancasPorBilhete[m.bilhete_id].push({
+        rota_antiga: m.rota_antiga,
+        rota_nova: m.rota_nova,
+        taxa: Number(m.taxa_mudanca ?? 0),
+        data: m.created_at,
+      });
     }
   }
 
@@ -88,6 +105,9 @@ async function fetchDividasClientes(): Promise<Row[]> {
       pago,
       restante,
       situacao,
+      taxa_mudancas: Number(b.taxa_mudancas_total ?? 0),
+      mudancas: mudancasPorBilhete[b.id] ?? [],
+
     };
   });
 }
