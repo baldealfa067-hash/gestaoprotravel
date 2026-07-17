@@ -638,19 +638,8 @@ function ReservasPage() {
                             </DropdownMenuItem>
                           )}
 
-                          <DropdownMenuItem
-                            onClick={() =>
-                              patch.mutate({
-                                id: r.id,
-                                changes: { cliente_contactado: !r.cliente_contactado },
-                              })
-                            }
-                          >
-                            <Phone className="h-4 w-4 mr-2" />
-                            {r.cliente_contactado
-                              ? "Desmarcar contactado"
-                              : "Marcar cliente contactado"}
-                          </DropdownMenuItem>
+
+
                           <DropdownMenuItem onClick={() => openEdit(r)}>
                             <Clock className="h-4 w-4 mr-2" /> Editar prazo / dados
                           </DropdownMenuItem>
