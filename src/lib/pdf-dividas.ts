@@ -16,9 +16,12 @@ type Row = {
   pago: number;
   restante: number;
   situacao: "parcial" | "nao_pago" | "pago";
+  taxa_mudancas: number;
+  mudancas: { rota_antiga: string; rota_nova: string; taxa: number; data: string | null }[];
 };
 
 type DividaCompanhia = {
+
   nome: string;
   codigo: string | null;
   divida: number;
