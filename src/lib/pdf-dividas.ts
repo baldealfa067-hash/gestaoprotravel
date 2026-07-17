@@ -16,9 +16,12 @@ type Row = {
   pago: number;
   restante: number;
   situacao: "parcial" | "nao_pago" | "pago";
+  taxa_mudancas: number;
+  mudancas: { rota_antiga: string; rota_nova: string; taxa: number; data: string | null }[];
 };
 
 type DividaCompanhia = {
+
   nome: string;
   codigo: string | null;
   divida: number;
@@ -46,7 +49,7 @@ async function fetchDividasClientes(): Promise<Row[]> {
   const { data: bilhetes, error } = await (supabase as any)
     .from("bilhetes")
     .select(
-      "id, data_viagem, valor_cobrado, custo, taxa_agencia, classe, origem, destino, companhia, status, cliente:cliente_id(full_name)",
+      "id, data_viagem, valor_cobrado, custo, taxa_agencia, taxa_mudancas_total, classe, origem, destino, companhia, status, cliente:cliente_id(full_name)",
     )
     .in("status", ["emitido", "pendente", "pedido_criado", "pago"])
     .order("data_viagem", { ascending: true, nullsFirst: false });
@@ -54,14 +57,31 @@ async function fetchDividasClientes(): Promise<Row[]> {
 
   const ids = (bilhetes ?? []).map((b: any) => b.id);
   const pagos: Record<string, number> = {};
+  const mudancasPorBilhete: Record<string, Row["mudancas"]> = {};
   if (ids.length) {
-    const { data: movs } = await (supabase as any)
-      .from("movimentacoes_capital")
-      .select("bilhete_id, valor")
-      .eq("tipo", "pagamento_cliente")
-      .in("bilhete_id", ids);
+    const [{ data: movs }, { data: muds }] = await Promise.all([
+      (supabase as any)
+        .from("movimentacoes_capital")
+        .select("bilhete_id, valor, tipo")
+        .in("tipo", ["pagamento_cliente", "pagamento_taxa_mudanca"])
+        .in("bilhete_id", ids),
+      (supabase as any)
+        .from("mudancas_rota")
+        .select("bilhete_id, rota_antiga, rota_nova, taxa_mudanca, created_at")
+        .in("bilhete_id", ids)
+        .order("created_at", { ascending: true }),
+    ]);
     for (const m of movs ?? []) {
       pagos[m.bilhete_id] = (pagos[m.bilhete_id] ?? 0) + Number(m.valor);
+    }
+    for (const m of muds ?? []) {
+      if (!mudancasPorBilhete[m.bilhete_id]) mudancasPorBilhete[m.bilhete_id] = [];
+      mudancasPorBilhete[m.bilhete_id].push({
+        rota_antiga: m.rota_antiga,
+        rota_nova: m.rota_nova,
+        taxa: Number(m.taxa_mudanca ?? 0),
+        data: m.created_at,
+      });
     }
   }
 
@@ -85,6 +105,9 @@ async function fetchDividasClientes(): Promise<Row[]> {
       pago,
       restante,
       situacao,
+      taxa_mudancas: Number(b.taxa_mudancas_total ?? 0),
+      mudancas: mudancasPorBilhete[b.id] ?? [],
+
     };
   });
 }
@@ -202,33 +225,49 @@ export async function exportarDividasPDF(opts: {
 
   const clientHead = [[
     "Data viagem", "Cliente", "Rota", "Classe", "Companhia",
-    "Preço", "Taxa", "Total", "Pago", "Em dívida",
+    "Preço", "Taxa", "Mud.", "Total", "Pago", "Em dívida",
   ]];
-  const clientBody = (rows: Row[]) => rows.map((r) => [
-    clean(r.data_viagem ? formatDate(r.data_viagem) : "—"),
-    clean(r.cliente),
-    clean(`${r.origem} -> ${r.destino}`),
-    r.classe === "executiva" ? "Executiva" : "Económica",
-    clean(r.companhia),
-    money(r.custo, opts.currency),
-    money(r.taxa, opts.currency),
-    money(r.total, opts.currency),
-    money(r.pago, opts.currency),
-    money(r.restante, opts.currency),
-  ]);
+  const clientBody = (rows: Row[]) => rows.flatMap((r) => {
+    const main = [
+      clean(r.data_viagem ? formatDate(r.data_viagem) : "—"),
+      clean(r.cliente),
+      clean(`${r.origem} -> ${r.destino}`),
+      r.classe === "executiva" ? "Executiva" : "Económica",
+      clean(r.companhia),
+      money(r.custo, opts.currency),
+      money(r.taxa, opts.currency),
+      r.taxa_mudancas > 0 ? money(r.taxa_mudancas, opts.currency) : "—",
+      money(r.total, opts.currency),
+      money(r.pago, opts.currency),
+      money(r.restante, opts.currency),
+    ];
+    if (r.mudancas.length === 0) return [main];
+    const detalhe = r.mudancas
+      .map((m, i) => `${i + 1}) ${clean(m.rota_antiga)} => ${clean(m.rota_nova)} · taxa ${money(m.taxa, opts.currency)}${m.data ? ` · ${formatDate(m.data)}` : ""}`)
+      .join("    ");
+    return [
+      main,
+      [{
+        content: `Mudanças de rota (${r.mudancas.length}):  ${detalhe}`,
+        colSpan: 11,
+        styles: { fontStyle: "italic", fontSize: 7, textColor: [70, 70, 70], fillColor: [250, 247, 235] },
+      }] as any,
+    ];
+  });
 
   // widths sum = 277mm (page 297 - margins 2*10)
   const clientColStyles: any = {
-    0: { cellWidth: 20 },
-    1: { cellWidth: 42 },
-    2: { cellWidth: 42 },
-    3: { cellWidth: 18 },
-    4: { cellWidth: 30 },
-    5: { halign: "right", cellWidth: 24 },
-    6: { halign: "right", cellWidth: 22 },
-    7: { halign: "right", cellWidth: 26 },
+    0: { cellWidth: 19 },
+    1: { cellWidth: 38 },
+    2: { cellWidth: 38 },
+    3: { cellWidth: 16 },
+    4: { cellWidth: 26 },
+    5: { halign: "right", cellWidth: 22 },
+    6: { halign: "right", cellWidth: 20 },
+    7: { halign: "right", cellWidth: 22 },
     8: { halign: "right", cellWidth: 24 },
-    9: { halign: "right", cellWidth: 29, fontStyle: "bold" },
+    9: { halign: "right", cellWidth: 22 },
+    10: { halign: "right", cellWidth: 30, fontStyle: "bold" },
   };
 
   const drawClientTable = (rows: Row[], subtotal: number) => {
@@ -238,7 +277,7 @@ export async function exportarDividasPDF(opts: {
       head: clientHead,
       body: clientBody(rows),
       foot: [[
-        { content: "Subtotal em dívida", colSpan: 9, styles: { halign: "right", fontStyle: "bold" } },
+        { content: "Subtotal em dívida", colSpan: 10, styles: { halign: "right", fontStyle: "bold" } },
         { content: money(subtotal, opts.currency), styles: { halign: "right", fontStyle: "bold" } },
       ]],
       styles: { fontSize: 8, cellPadding: 1.6, overflow: "linebreak", valign: "middle", lineColor: [200, 200, 200], lineWidth: 0.1 },
@@ -250,6 +289,7 @@ export async function exportarDividasPDF(opts: {
     // @ts-ignore
     y = (doc as any).lastAutoTable.finalY + 8;
   };
+
 
   // ── 1. Sem pagamento ───────────────────────────────────────────────
   drawSection("1. Clientes sem pagamento");
