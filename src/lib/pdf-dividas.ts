@@ -225,33 +225,49 @@ export async function exportarDividasPDF(opts: {
 
   const clientHead = [[
     "Data viagem", "Cliente", "Rota", "Classe", "Companhia",
-    "Preço", "Taxa", "Total", "Pago", "Em dívida",
+    "Preço", "Taxa", "Mud.", "Total", "Pago", "Em dívida",
   ]];
-  const clientBody = (rows: Row[]) => rows.map((r) => [
-    clean(r.data_viagem ? formatDate(r.data_viagem) : "—"),
-    clean(r.cliente),
-    clean(`${r.origem} -> ${r.destino}`),
-    r.classe === "executiva" ? "Executiva" : "Económica",
-    clean(r.companhia),
-    money(r.custo, opts.currency),
-    money(r.taxa, opts.currency),
-    money(r.total, opts.currency),
-    money(r.pago, opts.currency),
-    money(r.restante, opts.currency),
-  ]);
+  const clientBody = (rows: Row[]) => rows.flatMap((r) => {
+    const main = [
+      clean(r.data_viagem ? formatDate(r.data_viagem) : "—"),
+      clean(r.cliente),
+      clean(`${r.origem} -> ${r.destino}`),
+      r.classe === "executiva" ? "Executiva" : "Económica",
+      clean(r.companhia),
+      money(r.custo, opts.currency),
+      money(r.taxa, opts.currency),
+      r.taxa_mudancas > 0 ? money(r.taxa_mudancas, opts.currency) : "—",
+      money(r.total, opts.currency),
+      money(r.pago, opts.currency),
+      money(r.restante, opts.currency),
+    ];
+    if (r.mudancas.length === 0) return [main];
+    const detalhe = r.mudancas
+      .map((m, i) => `${i + 1}) ${clean(m.rota_antiga)} => ${clean(m.rota_nova)} · taxa ${money(m.taxa, opts.currency)}${m.data ? ` · ${formatDate(m.data)}` : ""}`)
+      .join("    ");
+    return [
+      main,
+      [{
+        content: `Mudanças de rota (${r.mudancas.length}):  ${detalhe}`,
+        colSpan: 11,
+        styles: { fontStyle: "italic", fontSize: 7, textColor: [70, 70, 70], fillColor: [250, 247, 235] },
+      }] as any,
+    ];
+  });
 
   // widths sum = 277mm (page 297 - margins 2*10)
   const clientColStyles: any = {
-    0: { cellWidth: 20 },
-    1: { cellWidth: 42 },
-    2: { cellWidth: 42 },
-    3: { cellWidth: 18 },
-    4: { cellWidth: 30 },
-    5: { halign: "right", cellWidth: 24 },
-    6: { halign: "right", cellWidth: 22 },
-    7: { halign: "right", cellWidth: 26 },
+    0: { cellWidth: 19 },
+    1: { cellWidth: 38 },
+    2: { cellWidth: 38 },
+    3: { cellWidth: 16 },
+    4: { cellWidth: 26 },
+    5: { halign: "right", cellWidth: 22 },
+    6: { halign: "right", cellWidth: 20 },
+    7: { halign: "right", cellWidth: 22 },
     8: { halign: "right", cellWidth: 24 },
-    9: { halign: "right", cellWidth: 29, fontStyle: "bold" },
+    9: { halign: "right", cellWidth: 22 },
+    10: { halign: "right", cellWidth: 30, fontStyle: "bold" },
   };
 
   const drawClientTable = (rows: Row[], subtotal: number) => {
@@ -261,7 +277,7 @@ export async function exportarDividasPDF(opts: {
       head: clientHead,
       body: clientBody(rows),
       foot: [[
-        { content: "Subtotal em dívida", colSpan: 9, styles: { halign: "right", fontStyle: "bold" } },
+        { content: "Subtotal em dívida", colSpan: 10, styles: { halign: "right", fontStyle: "bold" } },
         { content: money(subtotal, opts.currency), styles: { halign: "right", fontStyle: "bold" } },
       ]],
       styles: { fontSize: 8, cellPadding: 1.6, overflow: "linebreak", valign: "middle", lineColor: [200, 200, 200], lineWidth: 0.1 },
@@ -273,6 +289,7 @@ export async function exportarDividasPDF(opts: {
     // @ts-ignore
     y = (doc as any).lastAutoTable.finalY + 8;
   };
+
 
   // ── 1. Sem pagamento ───────────────────────────────────────────────
   drawSection("1. Clientes sem pagamento");
