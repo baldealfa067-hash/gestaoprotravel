@@ -41,7 +41,20 @@ function Dashboard() {
         .select("id, valor_cobrado, custo, lucro, status, vendedor_id, created_at, destino");
       if (error) throw error;
       const { data: profiles } = await supabase.from("profiles").select("id, full_name");
-      return { bilhetes: bilhetes ?? [], profiles: profiles ?? [] };
+      const { data: companhias } = await (supabase as any)
+        .from("companhias_aereas")
+        .select("saldo, ativa");
+      const { data: contas } = await (supabase as any)
+        .from("contas_financeiras")
+        .select("saldo_inicial, sistema, ativa");
+      const { data: cons } = await (supabase as any).rpc("verificar_consistencia_capital");
+      return {
+        bilhetes: bilhetes ?? [],
+        profiles: profiles ?? [],
+        companhias: companhias ?? [],
+        contas: contas ?? [],
+        consistencia: (cons?.[0] ?? null) as { capital_dividas: number } | null,
+      };
     },
   });
 
