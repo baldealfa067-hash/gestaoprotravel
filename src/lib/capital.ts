@@ -16,6 +16,8 @@ export const MOV_TIPO_LABEL: Record<string, string> = {
   emissao_bilhete: "Emissão de bilhete",
   pagamento_cliente: "Pagamento de cliente",
   pagamento_companhia: "Pagamento a companhia",
+  pagamento_taxa_mudanca: "Pagamento de taxa de mudança",
+  adianto_mudanca_rota: "Adiantamento mudança de rota",
   transferencia_lucro: "Transferência para lucro",
   despesa_operacional: "Despesa operacional",
   transferencia_interna: "Transferência interna",
@@ -26,8 +28,8 @@ export const MOV_TIPO_OPTIONS = Object.keys(MOV_TIPO_LABEL);
 export type MovDirection = "in" | "out" | "transfer" | "alert";
 
 export function movDirection(tipo: string): MovDirection {
-  if (tipo === "pagamento_cliente" || tipo === "aporte_capital") return "in";
-  if (tipo === "emissao_bilhete" || tipo === "despesa_operacional") return "out";
+  if (tipo === "pagamento_cliente" || tipo === "aporte_capital" || tipo === "pagamento_taxa_mudanca") return "in";
+  if (tipo === "emissao_bilhete" || tipo === "despesa_operacional" || tipo === "adianto_mudanca_rota") return "out";
   if (tipo === "transferencia_interna" || tipo === "transferencia_lucro" || tipo === "carregamento_companhia")
     return "transfer";
   return "alert";

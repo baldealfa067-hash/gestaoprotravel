@@ -3,7 +3,7 @@ import { RequireAdmin } from "@/components/require-admin";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ticket, TrendingUp, Wallet, Clock, CheckCircle2, Award, CalendarDays } from "lucide-react";
+import { Ticket, TrendingUp, Wallet, Clock, CheckCircle2, Award, CalendarDays, Plane, Layers } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { ReservasExpiringCard } from "@/components/reservas-expiring-card";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
@@ -41,7 +41,20 @@ function Dashboard() {
         .select("id, valor_cobrado, custo, lucro, status, vendedor_id, created_at, destino");
       if (error) throw error;
       const { data: profiles } = await supabase.from("profiles").select("id, full_name");
-      return { bilhetes: bilhetes ?? [], profiles: profiles ?? [] };
+      const { data: companhias } = await (supabase as any)
+        .from("companhias_aereas")
+        .select("saldo, ativa");
+      const { data: contas } = await (supabase as any)
+        .from("contas_financeiras")
+        .select("saldo_inicial, sistema, ativa");
+      const { data: cons } = await (supabase as any).rpc("verificar_consistencia_capital");
+      return {
+        bilhetes: bilhetes ?? [],
+        profiles: profiles ?? [],
+        companhias: companhias ?? [],
+        contas: contas ?? [],
+        consistencia: (cons?.[0] ?? null) as { capital_dividas: number } | null,
+      };
     },
   });
 
@@ -89,6 +102,14 @@ function Dashboard() {
     .slice(0, 5)
     .map(([destino, count]) => ({ destino, count }));
 
+  const totalCampanhas = (data?.companhias ?? [])
+    .filter((c: any) => c.ativa)
+    .reduce((s: number, c: any) => s + Math.max(0, Number(c.saldo ?? 0)), 0);
+  const circulanteConta = (data?.contas ?? []).find((c: any) => c.sistema);
+  const circulante = Number(circulanteConta?.saldo_inicial ?? 0);
+  const dividasClientes = Number(data?.consistencia?.capital_dividas ?? 0);
+  const totalGeral = circulante + dividasClientes + totalCampanhas;
+
   const stats = [
     { label: "Bilhetes hoje", value: todayTickets.length, icon: Ticket, color: "text-primary" },
     { label: "Bilhetes no mês", value: monthTickets.length, icon: CalendarDays, color: "text-primary-glow" },
@@ -96,6 +117,8 @@ function Dashboard() {
     { label: "Lucro do mês", value: formatCurrency(lucroMes, currency), icon: TrendingUp, color: "text-success" },
     { label: "Reservas pendentes", value: pendentes, icon: Clock, color: "text-warning" },
     { label: "Bilhetes emitidos", value: emitidos, icon: CheckCircle2, color: "text-success" },
+    { label: "Valor Total de Campanhas", value: formatCurrency(totalCampanhas, currency), icon: Plane, color: "text-primary" },
+    { label: "Total Geral", value: formatCurrency(totalGeral, currency), icon: Layers, color: "text-success" },
   ];
 
   return (
