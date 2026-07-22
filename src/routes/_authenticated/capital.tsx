@@ -38,6 +38,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { exportarDividasPDF } from "@/lib/pdf-dividas";
+import { exportarRelatorioGeralPDF } from "@/lib/pdf-relatorio-geral";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { CompanhiasEditor } from "@/components/companhias-editor";
