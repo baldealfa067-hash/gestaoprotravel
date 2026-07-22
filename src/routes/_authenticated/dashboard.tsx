@@ -3,7 +3,7 @@ import { RequireAdmin } from "@/components/require-admin";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ticket, TrendingUp, Wallet, Clock, CheckCircle2, Award, CalendarDays } from "lucide-react";
+import { Ticket, TrendingUp, Wallet, Clock, CheckCircle2, Award, CalendarDays, Plane, Layers } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { ReservasExpiringCard } from "@/components/reservas-expiring-card";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
