@@ -102,6 +102,14 @@ function Dashboard() {
     .slice(0, 5)
     .map(([destino, count]) => ({ destino, count }));
 
+  const totalCampanhas = (data?.companhias ?? [])
+    .filter((c: any) => c.ativa)
+    .reduce((s: number, c: any) => s + Math.max(0, Number(c.saldo ?? 0)), 0);
+  const circulanteConta = (data?.contas ?? []).find((c: any) => c.sistema);
+  const circulante = Number(circulanteConta?.saldo_inicial ?? 0);
+  const dividasClientes = Number(data?.consistencia?.capital_dividas ?? 0);
+  const totalGeral = circulante + dividasClientes + totalCampanhas;
+
   const stats = [
     { label: "Bilhetes hoje", value: todayTickets.length, icon: Ticket, color: "text-primary" },
     { label: "Bilhetes no mês", value: monthTickets.length, icon: CalendarDays, color: "text-primary-glow" },
@@ -109,6 +117,8 @@ function Dashboard() {
     { label: "Lucro do mês", value: formatCurrency(lucroMes, currency), icon: TrendingUp, color: "text-success" },
     { label: "Reservas pendentes", value: pendentes, icon: Clock, color: "text-warning" },
     { label: "Bilhetes emitidos", value: emitidos, icon: CheckCircle2, color: "text-success" },
+    { label: "Valor Total de Campanhas", value: formatCurrency(totalCampanhas, currency), icon: Plane, color: "text-primary" },
+    { label: "Total Geral", value: formatCurrency(totalGeral, currency), icon: Layers, color: "text-success" },
   ];
 
   return (
