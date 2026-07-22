@@ -28,8 +28,8 @@ export const MOV_TIPO_OPTIONS = Object.keys(MOV_TIPO_LABEL);
 export type MovDirection = "in" | "out" | "transfer" | "alert";
 
 export function movDirection(tipo: string): MovDirection {
-  if (tipo === "pagamento_cliente" || tipo === "aporte_capital") return "in";
-  if (tipo === "emissao_bilhete" || tipo === "despesa_operacional") return "out";
+  if (tipo === "pagamento_cliente" || tipo === "aporte_capital" || tipo === "pagamento_taxa_mudanca") return "in";
+  if (tipo === "emissao_bilhete" || tipo === "despesa_operacional" || tipo === "adianto_mudanca_rota") return "out";
   if (tipo === "transferencia_interna" || tipo === "transferencia_lucro" || tipo === "carregamento_companhia")
     return "transfer";
   return "alert";
