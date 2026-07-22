@@ -637,6 +637,7 @@ export type Database = {
         | "aporte_capital"
         | "pagamento_companhia"
         | "pagamento_taxa_mudanca"
+        | "adianto_mudanca_rota"
       ticket_status:
         | "pedido_criado"
         | "pendente"
@@ -784,6 +785,7 @@ export const Constants = {
         "aporte_capital",
         "pagamento_companhia",
         "pagamento_taxa_mudanca",
+        "adianto_mudanca_rota",
       ],
       ticket_status: [
         "pedido_criado",
