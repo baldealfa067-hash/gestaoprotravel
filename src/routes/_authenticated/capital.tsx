@@ -164,10 +164,6 @@ function CapitalPage() {
       <div className="flex flex-wrap gap-2">
         <DefinirCirculanteDialog settings={settings} />
         <AporteDialog contas={contas.data ?? []} />
-        <CarregarCompanhiaDialog
-          contas={contas.data ?? []}
-          companhias={companhias.data ?? []}
-        />
         <NovaContaDialog />
       </div>
 
