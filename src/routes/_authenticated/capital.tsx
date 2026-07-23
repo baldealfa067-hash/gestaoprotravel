@@ -37,7 +37,7 @@ import {
   Trash2,
   FileDown,
 } from "lucide-react";
-import { exportarDividasPDF } from "@/lib/pdf-dividas";
+
 import { exportarRelatorioGeralPDF } from "@/lib/pdf-relatorio-geral";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
