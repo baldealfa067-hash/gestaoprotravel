@@ -136,7 +136,7 @@ function CapitalPage() {
         />
         <MetricCard
           icon={<Plane className="h-4 w-4" />}
-          label="Carregado nas companhias"
+          label="Valores totais das agências"
           value={emCompanhias}
           currency={currency}
           tone="neutral"
