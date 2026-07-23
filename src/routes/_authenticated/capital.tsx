@@ -37,7 +37,7 @@ import {
   Trash2,
   FileDown,
 } from "lucide-react";
-import { exportarDividasPDF } from "@/lib/pdf-dividas";
+
 import { exportarRelatorioGeralPDF } from "@/lib/pdf-relatorio-geral";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
@@ -136,7 +136,7 @@ function CapitalPage() {
         />
         <MetricCard
           icon={<Plane className="h-4 w-4" />}
-          label="Carregado nas companhias"
+          label="Valores totais das agências"
           value={emCompanhias}
           currency={currency}
           tone="neutral"
@@ -164,10 +164,6 @@ function CapitalPage() {
       <div className="flex flex-wrap gap-2">
         <DefinirCirculanteDialog settings={settings} />
         <AporteDialog contas={contas.data ?? []} />
-        <CarregarCompanhiaDialog
-          contas={contas.data ?? []}
-          companhias={companhias.data ?? []}
-        />
         <NovaContaDialog />
       </div>
 
@@ -284,23 +280,6 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
               }}
             >
               <FileDown className="h-4 w-4 mr-1" /> Relatório Geral
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await exportarDividasPDF({
-                    currency,
-                    agencyName: settings?.agency_name ?? "Agência",
-                    logoUrl: settings?.logo_url ?? null,
-                  });
-                } catch (e: any) {
-                  toast.error(e?.message ?? "Erro a gerar PDF");
-                }
-              }}
-            >
-              <FileDown className="h-4 w-4 mr-1" /> PDF Dívidas
             </Button>
           </div>
         </div>

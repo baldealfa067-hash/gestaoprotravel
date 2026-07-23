@@ -326,38 +326,87 @@ export async function exportarRelatorioGeralPDF(opts: {
     y = (doc as any).lastAutoTable.finalY + 6;
   }
 
-  // ── 3. Resumo Financeiro ──────────────────────────────────────────
+  // ── 3. Conta Geral ────────────────────────────────────────────────
   if (y > PAGE_H - 90) { doc.addPage(); y = MARGIN + 4; }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("3. RESUMO FINANCEIRO", MARGIN, y);
+  doc.text("3. CONTA GERAL", MARGIN, y);
+  y += 5;
+
+  // Saldos por companhia (valor total em cada agência — não dívidas)
+  const companhiasOrdenadas = [...(companhias ?? [])]
+    .filter((c: any) => c.ativa !== false)
+    .sort((a: any, b: any) => (a.nome ?? "").localeCompare(b.nome ?? ""));
+
+  const somaCompanhias = companhiasOrdenadas.reduce(
+    (s: number, c: any) => s + Number(c.saldo ?? 0),
+    0,
+  );
+
+  const contaGeralRows: any[] = [
+    [
+      { content: "PREÇO UNITÁRIO", styles: { fontStyle: "bold", fillColor: [255, 249, 196] } },
+      { content: money(totalPrecoBilhetes, opts.currency), styles: { halign: "right", fontStyle: "bold", fillColor: [255, 249, 196] } },
+    ],
+  ];
+  for (const c of companhiasOrdenadas) {
+    contaGeralRows.push([
+      { content: clean((c.nome ?? "").toUpperCase()), styles: { fontStyle: "bold" } },
+      { content: money(Number(c.saldo ?? 0), opts.currency), styles: { halign: "right" } },
+    ]);
+  }
+
+  const totalContaGeral = totalPrecoBilhetes + somaCompanhias;
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 8 },
+    head: [[
+      { content: "CONTA GERAL", colSpan: 2, styles: { halign: "center", fillColor: [252, 228, 214], textColor: 0, fontStyle: "bold" } },
+    ]],
+    body: contaGeralRows,
+    foot: [[
+      { content: "TOTAL", styles: { fontStyle: "bold", fillColor: [255, 235, 59], textColor: 0 } },
+      { content: money(totalContaGeral, opts.currency), styles: { halign: "right", fontStyle: "bold", fillColor: [255, 235, 59], textColor: 0 } },
+    ]],
+    styles: { fontSize: 10, cellPadding: 2.5, lineColor: [180, 180, 180], lineWidth: 0.15 },
+    columnStyles: {
+      0: { cellWidth: 120 },
+      1: { halign: "right", cellWidth: PAGE_W - 2 * MARGIN - 120 },
+    },
+    theme: "grid",
+  });
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // ── 4. Indicadores complementares ─────────────────────────────────
+  if (y > PAGE_H - 60) { doc.addPage(); y = MARGIN + 4; }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("4. INDICADORES", MARGIN, y);
   y += 5;
 
   const c = resumo.consistencia ?? {};
   const dividasClientes = Number(c.capital_dividas ?? 0);
-  const valorCompanhias = Number(c.capital_companhias ?? 0);
   const capitalCirculante = Number(c.capital_contas ?? resumo.capitalCirculante ?? 0);
-
-  // Dívidas a companhias (modo credito com saldo < 0)
   const dividasCias = (companhias ?? [])
     .filter((c: any) => (c.modo ?? "saldo") === "credito" && Number(c.saldo ?? 0) < 0)
     .reduce((s: number, c: any) => s + Math.abs(Number(c.saldo ?? 0)), 0);
+  const totalGeral = capitalCirculante + dividasClientes + somaCompanhias;
 
-  const resumoRows = [
-    ["Total Preço dos Bilhetes", money(totalPrecoBilhetes, opts.currency)],
+  const indicadoresRows = [
     ["Total Taxas da Agência", money(totalTaxas, opts.currency)],
     ["Total Global das Vendas", money(totalGlobal, opts.currency)],
     ["Total de Mudanças de Rota", money(totalMudancas, opts.currency)],
     ["Total de Dívidas de Clientes", money(dividasClientes, opts.currency)],
     ["Total de Dívidas a Companhias", money(dividasCias, opts.currency)],
     ["Capital Circulante (Banco)", money(capitalCirculante, opts.currency)],
-    ["Valor Total nas Companhias", money(valorCompanhias, opts.currency)],
+    ["Valor Total nas Companhias", money(somaCompanhias, opts.currency)],
   ];
 
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 8 },
-    body: resumoRows,
+    body: indicadoresRows,
     styles: { fontSize: 10, cellPadding: 2.2, lineColor: [200, 200, 200], lineWidth: 0.1 },
     columnStyles: {
       0: { cellWidth: 120, fontStyle: "bold" },
@@ -366,8 +415,6 @@ export async function exportarRelatorioGeralPDF(opts: {
     theme: "grid",
   });
   y = (doc as any).lastAutoTable.finalY + 6;
-
-  const totalGeral = capitalCirculante + dividasClientes + valorCompanhias;
 
   if (y > PAGE_H - 30) { doc.addPage(); y = MARGIN + 4; }
   doc.setFillColor(30, 58, 138);
