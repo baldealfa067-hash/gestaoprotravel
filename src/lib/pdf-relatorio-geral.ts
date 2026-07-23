@@ -71,18 +71,15 @@ async function loadData() {
   if (e3) throw e3;
 
   const ids = (bs ?? []).map((b: any) => b.id);
-  const pagos: Record<string, number> = {};
   const pagosMudanca: Record<string, number> = {};
   if (ids.length) {
     const { data: movs } = await (supabase as any)
       .from("movimentacoes_capital")
       .select("bilhete_id, valor, tipo")
-      .in("tipo", ["pagamento_cliente", "pagamento_taxa_mudanca"])
+      .eq("tipo", "pagamento_taxa_mudanca")
       .in("bilhete_id", ids);
     for (const m of movs ?? []) {
-      pagos[m.bilhete_id] = (pagos[m.bilhete_id] ?? 0) + Number(m.valor);
-      if (m.tipo === "pagamento_taxa_mudanca")
-        pagosMudanca[m.bilhete_id] = (pagosMudanca[m.bilhete_id] ?? 0) + Number(m.valor);
+      pagosMudanca[m.bilhete_id] = (pagosMudanca[m.bilhete_id] ?? 0) + Number(m.valor);
     }
   }
 
@@ -126,27 +123,22 @@ async function loadData() {
   return { bilhetes, companhias: (cs ?? []) as any[], mudancas };
 }
 
-async function loadResumo() {
-  const [{ data: cons }, { data: agency }, { data: contas }] = await Promise.all([
-    (supabase as any).rpc("verificar_consistencia_capital"),
-    (supabase as any).from("agency_settings").select("*").limit(1).maybeSingle(),
-    (supabase as any).from("contas_financeiras").select("saldo_inicial, ativa"),
-  ]);
-  const consistencia = Array.isArray(cons) ? cons[0] : cons;
-  const capitalCirculante =
-    (contas ?? [])
-      .filter((c: any) => c.ativa)
-      .reduce((s: number, c: any) => s + Number(c.saldo_inicial ?? 0), 0) || 0;
-  return { consistencia, agency, capitalCirculante };
+async function loadCapitalCirculante() {
+  const { data: contas } = await (supabase as any)
+    .from("contas_financeiras")
+    .select("saldo_inicial, ativa");
+  return (contas ?? [])
+    .filter((c: any) => c.ativa)
+    .reduce((s: number, c: any) => s + Number(c.saldo_inicial ?? 0), 0);
 }
 
 export async function exportarRelatorioGeralPDF(opts: {
   currency: string;
   agencyName: string;
 }) {
-  const [{ bilhetes, companhias, mudancas }, resumo] = await Promise.all([
+  const [{ bilhetes, companhias, mudancas }, capitalCirculante] = await Promise.all([
     loadData(),
-    loadResumo(),
+    loadCapitalCirculante(),
   ]);
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -160,7 +152,6 @@ export async function exportarRelatorioGeralPDF(opts: {
     if (!grupos.has(key)) grupos.set(key, []);
     grupos.get(key)!.push(b);
   }
-  // Garantir companhias existentes mesmo sem bilhetes
   for (const c of companhias) {
     const key = (c.nome || "").trim().toUpperCase();
     if (key && !grupos.has(key)) grupos.set(key, []);
@@ -186,7 +177,7 @@ export async function exportarRelatorioGeralPDF(opts: {
 
   let y = 36;
 
-  // ── Totais gerais acumuladores ────────────────────────────────────
+  // Acumuladores globais
   let totalPrecoBilhetes = 0;
   let totalTaxas = 0;
   let totalGlobal = 0;
@@ -206,7 +197,7 @@ export async function exportarRelatorioGeralPDF(opts: {
   // ── 1. Companhias ─────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("1. COMPANHIAS AÉREAS", MARGIN, y);
+  doc.text("1. COMPANHIAS / AGÊNCIAS", MARGIN, y);
   y += 5;
 
   for (const nome of nomesOrdenados) {
@@ -294,18 +285,19 @@ export async function exportarRelatorioGeralPDF(opts: {
     autoTable(doc, {
       startY: y,
       margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 8 },
-      head: [["REF", "DATA", "CLIENTE", "ROTA", "TIPO", "VALOR", "SITUAÇÃO"]],
+      head: [["REF", "DATA", "CLIENTE", "ROTA ANTERIOR", "NOVA ROTA", "TIPO", "VALOR", "SITUAÇÃO"]],
       body: mudancas.map((m, i) => [
         String(i + 1),
         clean(formatDate(m.created_at)),
         clean(m.cliente),
-        clean(`${m.rota_antiga} -> ${m.rota_nova}`),
+        clean(m.rota_antiga),
+        clean(m.rota_nova),
         "MUDANÇA",
         money(m.taxa, opts.currency),
         situacaoLabel[m.situacao],
       ]),
       foot: [[
-        { content: "TOTAL DE MUDANÇAS DE ROTA", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } },
+        { content: "TOTAL DE MUDANÇAS DE ROTA", colSpan: 6, styles: { halign: "right", fontStyle: "bold" } },
         { content: money(totalMudancas, opts.currency), styles: { halign: "right", fontStyle: "bold" } },
         { content: "", styles: {} },
       ]],
@@ -314,49 +306,84 @@ export async function exportarRelatorioGeralPDF(opts: {
       footStyles: { fillColor: [245, 245, 245], textColor: 0 },
       columnStyles: {
         0: { cellWidth: 10 },
-        1: { cellWidth: 22 },
-        2: { cellWidth: 40 },
-        3: { cellWidth: 55 },
-        4: { cellWidth: 20 },
-        5: { halign: "right", cellWidth: 25 },
-        6: { cellWidth: 14 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 34 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 18 },
+        6: { halign: "right", cellWidth: 24 },
+        7: { cellWidth: 24 },
       },
       theme: "grid",
     });
     y = (doc as any).lastAutoTable.finalY + 6;
   }
 
-  // ── 3. Conta Geral ────────────────────────────────────────────────
-  if (y > PAGE_H - 90) { doc.addPage(); y = MARGIN + 4; }
+  // ── 3. Resumo das vendas ──────────────────────────────────────────
+  if (y > PAGE_H - 60) { doc.addPage(); y = MARGIN + 4; }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("3. CONTA GERAL", MARGIN, y);
+  doc.text("3. RESUMO DAS VENDAS", MARGIN, y);
   y += 5;
 
-  // Saldos por companhia (valor total em cada agência — não dívidas)
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 8 },
+    body: [
+      [
+        { content: "TOTAL PREÇO UNITÁRIO", styles: { fontStyle: "bold", fillColor: [255, 249, 196] } },
+        { content: money(totalPrecoBilhetes, opts.currency), styles: { halign: "right", fontStyle: "bold", fillColor: [255, 249, 196] } },
+      ],
+      [
+        { content: "TOTAL TAXAS", styles: { fontStyle: "bold", fillColor: [255, 249, 196] } },
+        { content: money(totalTaxas, opts.currency), styles: { halign: "right", fontStyle: "bold", fillColor: [255, 249, 196] } },
+      ],
+      [
+        { content: "TOTAL GLOBAL", styles: { fontStyle: "bold", fillColor: [244, 67, 54], textColor: 255 } },
+        { content: money(totalGlobal, opts.currency), styles: { halign: "right", fontStyle: "bold", fillColor: [244, 67, 54], textColor: 255 } },
+      ],
+    ],
+    styles: { fontSize: 10, cellPadding: 2.5, lineColor: [180, 180, 180], lineWidth: 0.15 },
+    columnStyles: {
+      0: { cellWidth: 120 },
+      1: { halign: "right", cellWidth: PAGE_W - 2 * MARGIN - 120 },
+    },
+    theme: "grid",
+  });
+  y = (doc as any).lastAutoTable.finalY + 8;
+
+  // ── 4. Conta Geral ────────────────────────────────────────────────
+  if (y > PAGE_H - 80) { doc.addPage(); y = MARGIN + 4; }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("4. CONTA GERAL", MARGIN, y);
+  y += 5;
+
   const companhiasOrdenadas = [...(companhias ?? [])]
     .filter((c: any) => c.ativa !== false)
     .sort((a: any, b: any) => (a.nome ?? "").localeCompare(b.nome ?? ""));
 
-  const somaCompanhias = companhiasOrdenadas.reduce(
-    (s: number, c: any) => s + Number(c.saldo ?? 0),
-    0,
-  );
-
   const contaGeralRows: any[] = [
     [
-      { content: "PREÇO UNITÁRIO", styles: { fontStyle: "bold", fillColor: [255, 249, 196] } },
-      { content: money(totalPrecoBilhetes, opts.currency), styles: { halign: "right", fontStyle: "bold", fillColor: [255, 249, 196] } },
+      { content: "PREÇO UNITÁRIO", styles: { fontStyle: "bold" } },
+      { content: money(totalPrecoBilhetes, opts.currency), styles: { halign: "right" } },
+    ],
+    [
+      { content: "ECOBANK", styles: { fontStyle: "bold" } },
+      { content: money(capitalCirculante, opts.currency), styles: { halign: "right" } },
     ],
   ];
+  let somaCompanhias = 0;
   for (const c of companhiasOrdenadas) {
+    const saldo = Number(c.saldo ?? 0);
+    somaCompanhias += saldo;
     contaGeralRows.push([
       { content: clean((c.nome ?? "").toUpperCase()), styles: { fontStyle: "bold" } },
-      { content: money(Number(c.saldo ?? 0), opts.currency), styles: { halign: "right" } },
+      { content: money(saldo, opts.currency), styles: { halign: "right" } },
     ]);
   }
 
-  const totalContaGeral = totalPrecoBilhetes + somaCompanhias;
+  const totalContaGeral = totalPrecoBilhetes + capitalCirculante + somaCompanhias;
 
   autoTable(doc, {
     startY: y,
@@ -376,61 +403,6 @@ export async function exportarRelatorioGeralPDF(opts: {
     },
     theme: "grid",
   });
-  y = (doc as any).lastAutoTable.finalY + 6;
-
-  // ── 4. Indicadores complementares ─────────────────────────────────
-  if (y > PAGE_H - 60) { doc.addPage(); y = MARGIN + 4; }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("4. INDICADORES", MARGIN, y);
-  y += 5;
-
-  const c = resumo.consistencia ?? {};
-  const dividasClientes = Number(c.capital_dividas ?? 0);
-  const capitalCirculante = Number(c.capital_contas ?? resumo.capitalCirculante ?? 0);
-  const dividasCias = (companhias ?? [])
-    .filter((c: any) => (c.modo ?? "saldo") === "credito" && Number(c.saldo ?? 0) < 0)
-    .reduce((s: number, c: any) => s + Math.abs(Number(c.saldo ?? 0)), 0);
-  const totalGeral = capitalCirculante + dividasClientes + somaCompanhias;
-
-  const indicadoresRows = [
-    ["Total Taxas da Agência", money(totalTaxas, opts.currency)],
-    ["Total Global das Vendas", money(totalGlobal, opts.currency)],
-    ["Total de Mudanças de Rota", money(totalMudancas, opts.currency)],
-    ["Total de Dívidas de Clientes", money(dividasClientes, opts.currency)],
-    ["Total de Dívidas a Companhias", money(dividasCias, opts.currency)],
-    ["Capital Circulante (Banco)", money(capitalCirculante, opts.currency)],
-    ["Valor Total nas Companhias", money(somaCompanhias, opts.currency)],
-  ];
-
-  autoTable(doc, {
-    startY: y,
-    margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 8 },
-    body: indicadoresRows,
-    styles: { fontSize: 10, cellPadding: 2.2, lineColor: [200, 200, 200], lineWidth: 0.1 },
-    columnStyles: {
-      0: { cellWidth: 120, fontStyle: "bold" },
-      1: { halign: "right", cellWidth: PAGE_W - 2 * MARGIN - 120 },
-    },
-    theme: "grid",
-  });
-  y = (doc as any).lastAutoTable.finalY + 6;
-
-  if (y > PAGE_H - 30) { doc.addPage(); y = MARGIN + 4; }
-  doc.setFillColor(30, 58, 138);
-  doc.setTextColor(255);
-  doc.rect(MARGIN, y, PAGE_W - 2 * MARGIN, 14, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("TOTAL GERAL", MARGIN + 3, y + 6);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("Capital Circulante + Dívidas de Clientes + Valor nas Companhias", MARGIN + 3, y + 11);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text(money(totalGeral, opts.currency), PAGE_W - MARGIN - 3, y + 9, { align: "right" });
-  doc.setTextColor(0);
-  y += 18;
 
   // ── Rodapé ────────────────────────────────────────────────────────
   const total = (doc as any).internal.getNumberOfPages();
