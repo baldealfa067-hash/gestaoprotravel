@@ -362,7 +362,7 @@ export async function exportarRelatorioGeralPDF(opts: {
   y += 5;
 
   const companhiasOrdenadas = [...(companhias ?? [])]
-    .filter((c: any) => c.ativa !== false)
+    .filter((c: any) => c.ativa !== false && Number(c.saldo ?? 0) > 0)
     .sort((a: any, b: any) => (a.nome ?? "").localeCompare(b.nome ?? ""));
 
   const contaGeralRows: any[] = [
