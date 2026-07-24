@@ -110,12 +110,31 @@ function CapitalPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Capital</h1>
-        <p className="text-muted-foreground text-sm">
-          Onde está o dinheiro, agora.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Capital</h1>
+          <p className="text-muted-foreground text-sm">
+            Onde está o dinheiro, agora.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={async () => {
+            try {
+              await exportarRelatorioGeralPDF({
+                currency,
+                agencyName: settings?.agency_name ?? "Agência",
+              });
+            } catch (e: any) {
+              toast.error(e?.message ?? "Erro a gerar PDF");
+            }
+          }}
+        >
+          <FileDown className="h-4 w-4 mr-1" /> Relatório Geral
+        </Button>
       </div>
+
 
       {/* 5 cards principais */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
