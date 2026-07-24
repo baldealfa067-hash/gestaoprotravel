@@ -413,7 +413,7 @@ export async function exportarRelatorioGeralPDF(opts: {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(130);
-    doc.text(clean(`${opts.agencyName} — Relatório Geral de Contas`), MARGIN, PAGE_H - 5);
+    doc.text(clean(opts.agencyName), MARGIN, PAGE_H - 5);
     doc.text(`Página ${i} de ${total}`, PAGE_W - MARGIN, PAGE_H - 5, { align: "right" });
     doc.setTextColor(0);
   }
