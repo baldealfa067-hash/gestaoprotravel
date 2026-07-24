@@ -284,22 +284,8 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
             <span className="text-success">Pagos: <b>{totais.pagos}</b></span>
             <span className="text-primary">Parciais: <b>{totais.parciais}</b></span>
             <span className="text-destructive">Não pagos: <b>{totais.naoPagos}</b></span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await exportarRelatorioGeralPDF({
-                    currency,
-                    agencyName: settings?.agency_name ?? "Agência",
-                  });
-                } catch (e: any) {
-                  toast.error(e?.message ?? "Erro a gerar PDF");
-                }
-              }}
-            >
-              <FileDown className="h-4 w-4 mr-1" /> Relatório Geral
-            </Button>
+
+
           </div>
         </div>
         <Table>
