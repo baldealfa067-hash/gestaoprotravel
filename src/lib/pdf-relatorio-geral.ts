@@ -93,9 +93,9 @@ async function loadData() {
     classe: b.classe === "executiva" ? "EXEC" : "ECO",
     companhia: b.companhia ?? "SEM COMPANHIA",
     companhia_id: b.companhia_id,
-    custo: Number(b.custo ?? 0),
+    custo: Number(b.custo ?? 0) + Number(b.taxa_mudancas_total ?? 0),
     taxa: Number(b.taxa_agencia ?? 0),
-    total: Number(b.valor_cobrado ?? 0) - Number(b.taxa_mudancas_total ?? 0),
+    total: Number(b.custo ?? 0) + Number(b.taxa_mudancas_total ?? 0) + Number(b.taxa_agencia ?? 0),
     ref: String(i + 1),
   }));
 
@@ -143,7 +143,7 @@ export async function exportarRelatorioGeralPDF(opts: {
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const now = new Date();
-  const emissao = now.toLocaleString("pt-PT");
+  
 
   // Agrupar bilhetes por companhia
   const grupos = new Map<string, Bilhete[]>();
@@ -160,20 +160,22 @@ export async function exportarRelatorioGeralPDF(opts: {
   const nomesOrdenados = Array.from(grupos.keys()).sort();
 
   // ── Cabeçalho ─────────────────────────────────────────────────────
+  const dataHora = now.toLocaleString("pt-PT", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.text(clean(opts.agencyName || "Agência").toUpperCase(), PAGE_W / 2, 14, { align: "center" });
-  doc.setFontSize(12);
-  doc.text("RELATÓRIO GERAL DE CONTAS", PAGE_W / 2, 21, { align: "center" });
+  doc.text(clean(opts.agencyName || "Agência").toUpperCase(), PAGE_W / 2, 16, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`Emitido: ${clean(emissao)}`, MARGIN, 28);
-  doc.text(`Moeda: ${clean(opts.currency)}`, PAGE_W - MARGIN, 28, { align: "right" });
+  doc.text(`Emitido em: ${clean(dataHora)}`, MARGIN, 24);
+  doc.text(`Moeda: ${clean(opts.currency)}`, PAGE_W - MARGIN, 24, { align: "right" });
 
   doc.setDrawColor(60);
   doc.setLineWidth(0.4);
-  doc.line(MARGIN, 31, PAGE_W - MARGIN, 31);
+  doc.line(MARGIN, 28, PAGE_W - MARGIN, 28);
 
   let y = 36;
 
@@ -224,7 +226,7 @@ export async function exportarRelatorioGeralPDF(opts: {
     autoTable(doc, {
       startY: y,
       margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 8 },
-      head: [["REF", "DATA", "CLIENTE", "ITINERÁRIO", "CL.", "P. BILHETE", "T. AGÊNCIA", "P. GLOBAL"]],
+      head: [["REF", "DATA", "CLIENTE", "ITINERÁRIO", "CL.", "P. UNITÁRIO", "T. AGÊNCIA", "P. GLOBAL"]],
       body: rows.map((r, i) => [
         String(i + 1),
         clean(r.data_viagem ? formatDate(r.data_viagem) : "—"),
@@ -369,7 +371,7 @@ export async function exportarRelatorioGeralPDF(opts: {
       { content: money(totalPrecoBilhetes, opts.currency), styles: { halign: "right" } },
     ],
     [
-      { content: "ECOBANK", styles: { fontStyle: "bold" } },
+      { content: "CAPITAL CIRCULANTE", styles: { fontStyle: "bold" } },
       { content: money(capitalCirculante, opts.currency), styles: { halign: "right" } },
     ],
   ];
@@ -411,7 +413,7 @@ export async function exportarRelatorioGeralPDF(opts: {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(130);
-    doc.text(clean(`${opts.agencyName} — Relatório Geral de Contas`), MARGIN, PAGE_H - 5);
+    doc.text(clean(opts.agencyName), MARGIN, PAGE_H - 5);
     doc.text(`Página ${i} de ${total}`, PAGE_W - MARGIN, PAGE_H - 5, { align: "right" });
     doc.setTextColor(0);
   }
