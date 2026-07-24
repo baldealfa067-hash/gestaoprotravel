@@ -143,7 +143,7 @@ export async function exportarRelatorioGeralPDF(opts: {
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const now = new Date();
-  const emissao = now.toLocaleString("pt-PT");
+  
 
   // Agrupar bilhetes por companhia
   const grupos = new Map<string, Bilhete[]>();
