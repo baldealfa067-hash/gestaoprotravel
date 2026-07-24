@@ -160,20 +160,22 @@ export async function exportarRelatorioGeralPDF(opts: {
   const nomesOrdenados = Array.from(grupos.keys()).sort();
 
   // ── Cabeçalho ─────────────────────────────────────────────────────
+  const dataHora = now.toLocaleString("pt-PT", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.text(clean(opts.agencyName || "Agência").toUpperCase(), PAGE_W / 2, 14, { align: "center" });
-  doc.setFontSize(12);
-  doc.text("RELATÓRIO GERAL DE CONTAS", PAGE_W / 2, 21, { align: "center" });
+  doc.text(clean(opts.agencyName || "Agência").toUpperCase(), PAGE_W / 2, 16, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`Emitido: ${clean(emissao)}`, MARGIN, 28);
-  doc.text(`Moeda: ${clean(opts.currency)}`, PAGE_W - MARGIN, 28, { align: "right" });
+  doc.text(`Emitido em: ${clean(dataHora)}`, MARGIN, 24);
+  doc.text(`Moeda: ${clean(opts.currency)}`, PAGE_W - MARGIN, 24, { align: "right" });
 
   doc.setDrawColor(60);
   doc.setLineWidth(0.4);
-  doc.line(MARGIN, 31, PAGE_W - MARGIN, 31);
+  doc.line(MARGIN, 28, PAGE_W - MARGIN, 28);
 
   let y = 36;
 
