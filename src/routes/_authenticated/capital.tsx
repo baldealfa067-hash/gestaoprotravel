@@ -117,25 +117,8 @@ function CapitalPage() {
         </p>
       </div>
 
-      {/* Total geral em destaque */}
-      <section>
-        <Card className="border-foreground/20 bg-muted/40">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Layers className="h-5 w-5" /> Total geral
-            </div>
-            <div className="text-4xl md:text-5xl font-bold mt-2 tabular-nums">
-              {formatCurrency(totalGeral, currency)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Banco + Companhias + Dívidas
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Cards principais */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 5 cards principais */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <MetricCard
           icon={<Users className="h-4 w-4" />}
           label="Clientes a dever"
@@ -160,6 +143,14 @@ function CapitalPage() {
           onEdit="companhias"
         />
         <MetricCard
+          icon={<Layers className="h-4 w-4" />}
+          label="Total geral"
+          value={totalGeral}
+          currency={currency}
+          tone="strong"
+          hint="Banco + Companhias + Dívidas"
+        />
+        <MetricCard
           icon={<PiggyBank className="h-4 w-4" />}
           label="Lucro por taxas"
           value={fundoLucro}
@@ -168,7 +159,6 @@ function CapitalPage() {
           onEdit="lucro"
         />
       </section>
-
 
       {/* Ações rápidas (operação diária) */}
       <div className="flex flex-wrap gap-2">
