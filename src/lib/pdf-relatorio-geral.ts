@@ -371,7 +371,7 @@ export async function exportarRelatorioGeralPDF(opts: {
       { content: money(totalPrecoBilhetes, opts.currency), styles: { halign: "right" } },
     ],
     [
-      { content: "ECOBANK", styles: { fontStyle: "bold" } },
+      { content: "CAPITAL CIRCULANTE", styles: { fontStyle: "bold" } },
       { content: money(capitalCirculante, opts.currency), styles: { halign: "right" } },
     ],
   ];
