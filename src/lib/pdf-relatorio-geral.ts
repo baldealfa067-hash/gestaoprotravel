@@ -226,7 +226,7 @@ export async function exportarRelatorioGeralPDF(opts: {
     autoTable(doc, {
       startY: y,
       margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + 8 },
-      head: [["REF", "DATA", "CLIENTE", "ITINERÁRIO", "CL.", "P. BILHETE", "T. AGÊNCIA", "P. GLOBAL"]],
+      head: [["REF", "DATA", "CLIENTE", "ITINERÁRIO", "CL.", "P. UNITÁRIO", "T. AGÊNCIA", "P. GLOBAL"]],
       body: rows.map((r, i) => [
         String(i + 1),
         clean(r.data_viagem ? formatDate(r.data_viagem) : "—"),
