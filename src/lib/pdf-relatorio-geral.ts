@@ -93,9 +93,9 @@ async function loadData() {
     classe: b.classe === "executiva" ? "EXEC" : "ECO",
     companhia: b.companhia ?? "SEM COMPANHIA",
     companhia_id: b.companhia_id,
-    custo: Number(b.custo ?? 0),
+    custo: Number(b.custo ?? 0) + Number(b.taxa_mudancas_total ?? 0),
     taxa: Number(b.taxa_agencia ?? 0),
-    total: Number(b.valor_cobrado ?? 0) - Number(b.taxa_mudancas_total ?? 0),
+    total: Number(b.custo ?? 0) + Number(b.taxa_mudancas_total ?? 0) + Number(b.taxa_agencia ?? 0),
     ref: String(i + 1),
   }));
 
