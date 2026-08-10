@@ -102,9 +102,9 @@ function ConfiguracoesPage() {
           .eq("id", settings.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("agency_settings").insert(payload);
-        if (error) throw error;
+        throw new Error("Configurações da agência não encontradas");
       }
+
 
     },
     onSuccess: () => {
