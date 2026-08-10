@@ -70,7 +70,15 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     });
     if (!isAdmin) throw new Error("Acesso negado");
     if (data.user_id === context.userId) throw new Error("Não pode eliminar a sua própria conta");
+    // Só pode eliminar funcionários da própria agência (RLS garante o alcance)
+    const { data: target } = await context.supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", data.user_id)
+      .maybeSingle();
+    if (!target) throw new Error("Funcionário não pertence à sua agência");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
     if (error) throw new Error(error.message);
     return { ok: true };
