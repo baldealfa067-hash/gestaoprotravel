@@ -22,6 +22,15 @@ export const createEmployee = createServerFn({ method: "POST" })
     });
     if (!isAdmin) throw new Error("Acesso negado");
 
+    // Agência do admin que está a criar
+    const { data: me } = await context.supabase
+      .from("profiles")
+      .select("agency_id")
+      .eq("id", context.userId)
+      .maybeSingle();
+    const agencyId = me?.agency_id;
+    if (!agencyId) throw new Error("Agência não encontrada");
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
@@ -32,19 +41,21 @@ export const createEmployee = createServerFn({ method: "POST" })
         phone: data.phone,
         cargo: data.cargo,
         role: data.role,
+        agency_id: agencyId,
       },
     });
     if (error || !created.user) throw new Error(error?.message ?? "Falha ao criar utilizador");
 
     // Ensure role row exists with requested role (trigger may default to vendedor)
     await supabaseAdmin.from("user_roles").upsert(
-      { user_id: created.user.id, role: data.role },
+      { user_id: created.user.id, role: data.role, agency_id: agencyId },
       { onConflict: "user_id,role" },
     );
     if (data.role === "admin") {
       // remove vendedor row if any
       await supabaseAdmin.from("user_roles").delete().eq("user_id", created.user.id).eq("role", "vendedor");
     }
+
 
     return { ok: true, user_id: created.user.id };
   });
