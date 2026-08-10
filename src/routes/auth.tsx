@@ -83,7 +83,7 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    toast.success("Conta de administrador criada. Pode iniciar sessão.");
+    toast.success("Agência criada. Pode iniciar sessão como administrador.");
     setTab("login");
   };
 
@@ -121,12 +121,12 @@ function AuthPage() {
           <CardHeader className="pb-2">
             <CardTitle>
               {tab === "login" && "Iniciar sessão"}
-              {tab === "setup" && "Criar Administrador"}
+              {tab === "setup" && "Criar nova agência"}
               {tab === "forgot" && "Recuperar senha"}
             </CardTitle>
             <CardDescription>
               {tab === "login" && "Entre com as suas credenciais"}
-              {tab === "setup" && "Primeiro acesso à plataforma"}
+              {tab === "setup" && "Cria a sua agência e a conta de administrador"}
               {tab === "forgot" && "Enviaremos um link para o seu email"}
             </CardDescription>
           </CardHeader>
@@ -194,7 +194,7 @@ function AuthPage() {
                     <Input id="password-s" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Criar Administrador
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Criar agência
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
                     Esta opção só está disponível na primeira instalação. Depois, novos utilizadores devem ser convidados pelo admin.
