@@ -70,8 +70,13 @@ function AuthPage() {
       password: parsed.data.password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { full_name: parsed.data.full_name, cargo: "Administrador" },
+        data: {
+          full_name: parsed.data.full_name,
+          cargo: "Administrador",
+          agency_name: parsed.data.agency_name,
+        },
       },
+
     });
     setLoading(false);
     if (error) {
