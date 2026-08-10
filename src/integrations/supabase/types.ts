@@ -61,6 +61,7 @@ export type Database = {
       }
       bilhetes: {
         Row: {
+          agency_id: string
           classe: Database["public"]["Enums"]["bilhete_classe"]
           cliente_id: string
           companhia: string
@@ -85,6 +86,7 @@ export type Database = {
           vendedor_id: string
         }
         Insert: {
+          agency_id?: string
           classe?: Database["public"]["Enums"]["bilhete_classe"]
           cliente_id: string
           companhia: string
@@ -109,6 +111,7 @@ export type Database = {
           vendedor_id: string
         }
         Update: {
+          agency_id?: string
           classe?: Database["public"]["Enums"]["bilhete_classe"]
           cliente_id?: string
           companhia?: string
@@ -134,6 +137,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "bilhetes_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bilhetes_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
@@ -151,6 +161,7 @@ export type Database = {
       }
       clientes: {
         Row: {
+          agency_id: string
           created_at: string
           created_by: string | null
           email: string | null
@@ -162,6 +173,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id?: string
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -173,6 +185,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -183,10 +196,19 @@ export type Database = {
           phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clientes_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companhias_aereas: {
         Row: {
+          agency_id: string
           alerta_minimo: number
           ativa: boolean
           codigo: string | null
@@ -200,6 +222,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id?: string
           alerta_minimo?: number
           ativa?: boolean
           codigo?: string | null
@@ -213,6 +236,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           alerta_minimo?: number
           ativa?: boolean
           codigo?: string | null
@@ -225,10 +249,19 @@ export type Database = {
           ultimo_consumo?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companhias_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contas_financeiras: {
         Row: {
+          agency_id: string
           ativa: boolean
           created_at: string
           id: string
@@ -239,6 +272,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id?: string
           ativa?: boolean
           created_at?: string
           id?: string
@@ -249,6 +283,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           ativa?: boolean
           created_at?: string
           id?: string
@@ -258,28 +293,48 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["conta_tipo"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contas_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fundo_lucro: {
         Row: {
+          agency_id: string
           id: string
           saldo: number
           updated_at: string
         }
         Insert: {
+          agency_id: string
           id?: string
           saldo?: number
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           id?: string
           saldo?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fundo_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       movimentacoes_capital: {
         Row: {
+          agency_id: string
           aplicar_saldo: boolean
           bilhete_id: string | null
           cliente_id: string | null
@@ -295,6 +350,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          agency_id?: string
           aplicar_saldo?: boolean
           bilhete_id?: string | null
           cliente_id?: string | null
@@ -310,6 +366,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          agency_id?: string
           aplicar_saldo?: boolean
           bilhete_id?: string | null
           cliente_id?: string | null
@@ -325,6 +382,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "movimentacoes_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "movimentacoes_capital_bilhete_id_fkey"
             columns: ["bilhete_id"]
@@ -364,6 +428,7 @@ export type Database = {
       }
       mudancas_rota: {
         Row: {
+          agency_id: string
           bilhete_id: string | null
           classe_antiga: Database["public"]["Enums"]["bilhete_classe"] | null
           classe_nova: Database["public"]["Enums"]["bilhete_classe"] | null
@@ -381,6 +446,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id?: string
           bilhete_id?: string | null
           classe_antiga?: Database["public"]["Enums"]["bilhete_classe"] | null
           classe_nova?: Database["public"]["Enums"]["bilhete_classe"] | null
@@ -398,6 +464,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           bilhete_id?: string | null
           classe_antiga?: Database["public"]["Enums"]["bilhete_classe"] | null
           classe_nova?: Database["public"]["Enums"]["bilhete_classe"] | null
@@ -415,6 +482,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "mudancas_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mudancas_rota_bilhete_id_fkey"
             columns: ["bilhete_id"]
@@ -440,6 +514,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          agency_id: string
           cargo: string | null
           created_at: string
           full_name: string
@@ -448,6 +523,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id: string
           cargo?: string | null
           created_at?: string
           full_name?: string
@@ -456,6 +532,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           cargo?: string | null
           created_at?: string
           full_name?: string
@@ -463,10 +540,19 @@ export type Database = {
           phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservas: {
         Row: {
+          agency_id: string
           bilhete_id: string | null
           classe: string
           cliente_contactado: boolean
@@ -487,6 +573,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agency_id?: string
           bilhete_id?: string | null
           classe?: string
           cliente_contactado?: boolean
@@ -507,6 +594,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agency_id?: string
           bilhete_id?: string | null
           classe?: string
           cliente_contactado?: boolean
@@ -528,6 +616,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "reservas_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "reservas_bilhete_id_fkey"
             columns: ["bilhete_id"]
             isOneToOne: false
@@ -545,24 +640,35 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          agency_id: string
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          agency_id: string
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          agency_id?: string
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_agency_fk"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -582,6 +688,7 @@ export type Database = {
         }
         Returns: number
       }
+      current_agency_id: { Args: never; Returns: string }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
