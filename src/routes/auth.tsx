@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -26,27 +26,15 @@ const loginSchema = z.object({
 
 const signupSchema = loginSchema.extend({
   full_name: z.string().trim().min(2, "Indique o nome").max(100),
+  agency_name: z.string().trim().min(2, "Indique o nome da agência").max(120),
 });
 
 function AuthPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"login" | "setup" | "forgot">("login");
-  const [hasUsers, setHasUsers] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", full_name: "" });
+  const [form, setForm] = useState({ email: "", password: "", full_name: "", agency_name: "" });
 
-  useEffect(() => {
-    // Best-effort: check if any profile exists. RLS allows authenticated only,
-    // anonymous gets 0 rows either way, so we use a HEAD count via REST.
-    supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .then(({ count }) => {
-        // Anonymous reads are blocked by RLS so count will be null → treat as users exist.
-        // We expose this only as a hint; real check is server-side via trigger.
-        setHasUsers(count === null ? true : count > 0);
-      });
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,15 +70,20 @@ function AuthPage() {
       password: parsed.data.password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { full_name: parsed.data.full_name, cargo: "Administrador" },
+        data: {
+          full_name: parsed.data.full_name,
+          cargo: "Administrador",
+          agency_name: parsed.data.agency_name,
+        },
       },
+
     });
     setLoading(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Conta de administrador criada. Pode iniciar sessão.");
+    toast.success("Agência criada. Pode iniciar sessão como administrador.");
     setTab("login");
   };
 
@@ -128,12 +121,12 @@ function AuthPage() {
           <CardHeader className="pb-2">
             <CardTitle>
               {tab === "login" && "Iniciar sessão"}
-              {tab === "setup" && "Criar Administrador"}
+              {tab === "setup" && "Criar nova agência"}
               {tab === "forgot" && "Recuperar senha"}
             </CardTitle>
             <CardDescription>
               {tab === "login" && "Entre com as suas credenciais"}
-              {tab === "setup" && "Primeiro acesso à plataforma"}
+              {tab === "setup" && "Cria a sua agência e a conta de administrador"}
               {tab === "forgot" && "Enviaremos um link para o seu email"}
             </CardDescription>
           </CardHeader>
@@ -141,9 +134,8 @@ function AuthPage() {
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="setup" disabled={hasUsers === true}>
-                  1º Admin
-                </TabsTrigger>
+                <TabsTrigger value="setup">Criar agência</TabsTrigger>
+
               </TabsList>
               <TabsContent value="login">
                 {tab !== "forgot" ? (
@@ -185,9 +177,14 @@ function AuthPage() {
               <TabsContent value="setup">
                 <form onSubmit={handleSetup} className="space-y-4">
                   <div className="space-y-2">
+                    <Label htmlFor="agency_name">Nome da agência</Label>
+                    <Input id="agency_name" value={form.agency_name} onChange={(e) => setForm({ ...form, agency_name: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="full_name">Nome completo</Label>
                     <Input id="full_name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="email-s">Email</Label>
                     <Input id="email-s" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
@@ -197,7 +194,7 @@ function AuthPage() {
                     <Input id="password-s" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Criar Administrador
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Criar agência
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
                     Esta opção só está disponível na primeira instalação. Depois, novos utilizadores devem ser convidados pelo admin.
