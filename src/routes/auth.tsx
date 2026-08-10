@@ -26,27 +26,15 @@ const loginSchema = z.object({
 
 const signupSchema = loginSchema.extend({
   full_name: z.string().trim().min(2, "Indique o nome").max(100),
+  agency_name: z.string().trim().min(2, "Indique o nome da agência").max(120),
 });
 
 function AuthPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"login" | "setup" | "forgot">("login");
-  const [hasUsers, setHasUsers] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", full_name: "" });
+  const [form, setForm] = useState({ email: "", password: "", full_name: "", agency_name: "" });
 
-  useEffect(() => {
-    // Best-effort: check if any profile exists. RLS allows authenticated only,
-    // anonymous gets 0 rows either way, so we use a HEAD count via REST.
-    supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .then(({ count }) => {
-        // Anonymous reads are blocked by RLS so count will be null → treat as users exist.
-        // We expose this only as a hint; real check is server-side via trigger.
-        setHasUsers(count === null ? true : count > 0);
-      });
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
