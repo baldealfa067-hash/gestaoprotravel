@@ -129,9 +129,8 @@ function AuthPage() {
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="setup" disabled={hasUsers === true}>
-                  1º Admin
-                </TabsTrigger>
+                <TabsTrigger value="setup">Criar agência</TabsTrigger>
+
               </TabsList>
               <TabsContent value="login">
                 {tab !== "forgot" ? (
