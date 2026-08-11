@@ -54,3 +54,29 @@ export function useUserRole() {
 
   return { role, loading, isAdmin: role === "admin" };
 }
+
+export function useIsSuperadmin() {
+  const { user } = useAuth();
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setIsSuperadmin(false);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    supabase
+      .from("superadmins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsSuperadmin(!!data);
+        setLoading(false);
+      });
+  }, [user]);
+
+  return { isSuperadmin, loading };
+}
