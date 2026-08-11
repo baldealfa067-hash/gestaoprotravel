@@ -9,6 +9,7 @@ import {
   LogOut,
   Plane,
   CalendarClock,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -23,7 +24,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/use-auth";
+import { useUserRole, useIsSuperadmin } from "@/hooks/use-auth";
+
 
 const adminItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -45,7 +47,12 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { isAdmin } = useUserRole();
-  const items = isAdmin ? adminItems : vendedorItems;
+  const { isSuperadmin } = useIsSuperadmin();
+  const items = [
+    ...(isAdmin ? adminItems : vendedorItems),
+    ...(isSuperadmin ? [{ title: "Superadmin", url: "/superadmin", icon: ShieldCheck }] : []),
+  ];
+
 
   const signOut = async () => {
     await supabase.auth.signOut();

@@ -638,6 +638,21 @@ export type Database = {
           },
         ]
       }
+      superadmins: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           agency_id: string
@@ -707,6 +722,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_superadmin: { Args: { _user_id: string }; Returns: boolean }
       sincronizar_capital_base: {
         Args: never
         Returns: {
