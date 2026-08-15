@@ -280,7 +280,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span>Total faturado: <b className="tabular-nums">{formatCurrency(totais.total, currency)}</b></span>
+            <span>Total em custo: <b className="tabular-nums">{formatCurrency(totais.total, currency)}</b></span>
             <span className="text-warning">A receber: <b className="tabular-nums">{formatCurrency(totais.devido, currency)}</b></span>
             <span className="text-success">Pagos: <b>{totais.pagos}</b></span>
             <span className="text-primary">Parciais: <b>{totais.parciais}</b></span>
