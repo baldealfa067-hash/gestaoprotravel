@@ -36,9 +36,11 @@ import {
   Banknote,
   Trash2,
   FileDown,
+  CalendarDays,
 } from "lucide-react";
 
 import { exportarRelatorioGeralPDF } from "@/lib/pdf-relatorio-geral";
+import { exportarRelatorioMensalPDF, MESES } from "@/lib/pdf-relatorio-mensal";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { CompanhiasEditor } from "@/components/companhias-editor";
@@ -117,23 +119,27 @@ function CapitalPage() {
             Onde está o dinheiro, agora.
           </p>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={async () => {
-            try {
-              await exportarRelatorioGeralPDF({
-                currency,
-                agencyName: settings?.agency_name ?? "Agência",
-              });
-            } catch (e: any) {
-              toast.error(e?.message ?? "Erro a gerar PDF");
-            }
-          }}
-        >
-          <FileDown className="h-4 w-4 mr-1" /> Relatório Geral
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <RelatorioMensalDialog currency={currency} agencyName={settings?.agency_name ?? "Agência"} />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              try {
+                await exportarRelatorioGeralPDF({
+                  currency,
+                  agencyName: settings?.agency_name ?? "Agência",
+                });
+              } catch (e: any) {
+                toast.error(e?.message ?? "Erro a gerar PDF");
+              }
+            }}
+          >
+            <FileDown className="h-4 w-4 mr-1" /> Relatório Geral
+          </Button>
+        </div>
       </div>
+
 
 
       {/* 5 cards principais */}
@@ -230,7 +236,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
     queryFn: async () => {
       const { data: bilhetes, error } = await (supabase as any)
         .from("bilhetes")
-        .select("id, valor_cobrado, pago, status, created_at, cliente:cliente_id(id, full_name)")
+        .select("id, custo, taxa_mudancas_total, valor_cobrado, pago, status, created_at, cliente:cliente_id(id, full_name)")
         .in("status", ["emitido", "pendente", "pedido_criado"])
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -240,7 +246,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
         const { data: movs } = await (supabase as any)
           .from("movimentacoes_capital")
           .select("bilhete_id, valor")
-          .eq("tipo", "pagamento_cliente")
+          .in("tipo", ["pagamento_cliente", "pagamento_taxa_mudanca"])
           .in("bilhete_id", ids);
         for (const m of movs ?? []) {
           pagosPorBilhete[m.bilhete_id] = (pagosPorBilhete[m.bilhete_id] ?? 0) + Number(m.valor);
@@ -248,20 +254,21 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
       }
       return (bilhetes ?? []).map((b: any) => {
         const pago = pagosPorBilhete[b.id] ?? 0;
-        const total = Number(b.valor_cobrado ?? 0);
+        const total = Number(b.custo ?? 0) + Number(b.taxa_mudancas_total ?? 0);
         const restante = Math.max(0, total - pago);
         let situacao: "pago" | "parcial" | "nao_pago" = "nao_pago";
         if (restante < 0.01) situacao = "pago";
         else if (pago > 0) situacao = "parcial";
-        return { ...b, pago_valor: pago, restante, situacao };
+        return { ...b, total_divida: total, pago_valor: Math.min(pago, total), restante, situacao };
       });
+
     },
     refetchInterval: 30_000,
   });
 
   const rows = data ?? [];
   const totais = {
-    total: rows.reduce((s: number, r: any) => s + Number(r.valor_cobrado ?? 0), 0),
+    total: rows.reduce((s: number, r: any) => s + Number(r.total_divida ?? 0), 0),
     devido: rows.reduce((s: number, r: any) => s + r.restante, 0),
     pagos: rows.filter((r: any) => r.situacao === "pago").length,
     parciais: rows.filter((r: any) => r.situacao === "parcial").length,
@@ -279,7 +286,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span>Total faturado: <b className="tabular-nums">{formatCurrency(totais.total, currency)}</b></span>
+            <span>Total em custo: <b className="tabular-nums">{formatCurrency(totais.total, currency)}</b></span>
             <span className="text-warning">A receber: <b className="tabular-nums">{formatCurrency(totais.devido, currency)}</b></span>
             <span className="text-success">Pagos: <b>{totais.pagos}</b></span>
             <span className="text-primary">Parciais: <b>{totais.parciais}</b></span>
@@ -316,7 +323,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
               <TableRow key={r.id} className={r.situacao !== "pago" ? "bg-warning/5" : undefined}>
                 <TableCell className="font-medium">{r.cliente?.full_name ?? "—"}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.valor_cobrado ?? 0), currency)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.total_divida ?? 0), currency)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatCurrency(r.pago_valor, currency)}</TableCell>
                 <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(r.restante, currency)}</TableCell>
                 <TableCell>
@@ -1167,3 +1174,75 @@ function DividasCompanhiasSection({ currency }: { currency: string }) {
   );
 }
 
+
+function RelatorioMensalDialog({ currency, agencyName }: { currency: string; agencyName: string }) {
+  const now = new Date();
+  const [open, setOpen] = useState(false);
+  const [mes, setMes] = useState(String(now.getMonth() + 1));
+  const [ano, setAno] = useState(String(now.getFullYear()));
+  const [loading, setLoading] = useState(false);
+  const anos = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <CalendarDays className="h-4 w-4 mr-1" /> Relatório Mensal
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Relatório mensal</DialogTitle>
+          <DialogDescription>Todas as atividades do mês escolhido.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label>Mês</Label>
+            <Select value={mes} onValueChange={setMes}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MESES.map((m, i) => (
+                  <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Ano</Label>
+            <Select value={ano} onValueChange={setAno}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {anos.map((a) => (
+                  <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            disabled={loading}
+            onClick={async () => {
+              setLoading(true);
+              try {
+                await exportarRelatorioMensalPDF({
+                  currency,
+                  agencyName,
+                  year: Number(ano),
+                  month: Number(mes),
+                });
+                setOpen(false);
+              } catch (e: any) {
+                toast.error(e?.message ?? "Erro a gerar PDF");
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            {loading ? "A gerar…" : "Gerar PDF"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
