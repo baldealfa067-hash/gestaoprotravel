@@ -262,7 +262,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
 
   const rows = data ?? [];
   const totais = {
-    total: rows.reduce((s: number, r: any) => s + Number(r.valor_cobrado ?? 0), 0),
+    total: rows.reduce((s: number, r: any) => s + Number(r.total_divida ?? 0), 0),
     devido: rows.reduce((s: number, r: any) => s + r.restante, 0),
     pagos: rows.filter((r: any) => r.situacao === "pago").length,
     parciais: rows.filter((r: any) => r.situacao === "parcial").length,
