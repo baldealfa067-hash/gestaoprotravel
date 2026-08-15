@@ -79,6 +79,16 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     if (!target) throw new Error("Funcionário não pertence à sua agência");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Reatribuir registos ao admin (FKs impedem a eliminação direta)
+    await supabaseAdmin.from("bilhetes").update({ vendedor_id: context.userId }).eq("vendedor_id", data.user_id);
+    await supabaseAdmin.from("reservas").update({ user_id: context.userId }).eq("user_id", data.user_id);
+    await supabaseAdmin.from("clientes").update({ created_by: context.userId }).eq("created_by", data.user_id);
+    await supabaseAdmin
+      .from("movimentacoes_capital")
+      .update({ responsavel_id: context.userId })
+      .eq("responsavel_id", data.user_id);
+    await supabaseAdmin.from("mudancas_rota").update({ responsavel_id: context.userId }).eq("responsavel_id", data.user_id);
+
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
     if (error) throw new Error(error.message);
     return { ok: true };
