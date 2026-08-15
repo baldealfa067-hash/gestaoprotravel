@@ -230,7 +230,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
     queryFn: async () => {
       const { data: bilhetes, error } = await (supabase as any)
         .from("bilhetes")
-        .select("id, valor_cobrado, pago, status, created_at, cliente:cliente_id(id, full_name)")
+        .select("id, custo, taxa_mudancas_total, valor_cobrado, pago, status, created_at, cliente:cliente_id(id, full_name)")
         .in("status", ["emitido", "pendente", "pedido_criado"])
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -240,7 +240,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
         const { data: movs } = await (supabase as any)
           .from("movimentacoes_capital")
           .select("bilhete_id, valor")
-          .eq("tipo", "pagamento_cliente")
+          .in("tipo", ["pagamento_cliente", "pagamento_taxa_mudanca"])
           .in("bilhete_id", ids);
         for (const m of movs ?? []) {
           pagosPorBilhete[m.bilhete_id] = (pagosPorBilhete[m.bilhete_id] ?? 0) + Number(m.valor);
@@ -248,13 +248,14 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
       }
       return (bilhetes ?? []).map((b: any) => {
         const pago = pagosPorBilhete[b.id] ?? 0;
-        const total = Number(b.valor_cobrado ?? 0);
+        const total = Number(b.custo ?? 0) + Number(b.taxa_mudancas_total ?? 0);
         const restante = Math.max(0, total - pago);
         let situacao: "pago" | "parcial" | "nao_pago" = "nao_pago";
         if (restante < 0.01) situacao = "pago";
         else if (pago > 0) situacao = "parcial";
-        return { ...b, pago_valor: pago, restante, situacao };
+        return { ...b, total_divida: total, pago_valor: Math.min(pago, total), restante, situacao };
       });
+
     },
     refetchInterval: 30_000,
   });
