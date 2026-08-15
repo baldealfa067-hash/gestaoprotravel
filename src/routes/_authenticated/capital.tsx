@@ -36,9 +36,11 @@ import {
   Banknote,
   Trash2,
   FileDown,
+  CalendarDays,
 } from "lucide-react";
 
 import { exportarRelatorioGeralPDF } from "@/lib/pdf-relatorio-geral";
+import { exportarRelatorioMensalPDF, MESES } from "@/lib/pdf-relatorio-mensal";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { CompanhiasEditor } from "@/components/companhias-editor";
@@ -1172,3 +1174,75 @@ function DividasCompanhiasSection({ currency }: { currency: string }) {
   );
 }
 
+
+function RelatorioMensalDialog({ currency, agencyName }: { currency: string; agencyName: string }) {
+  const now = new Date();
+  const [open, setOpen] = useState(false);
+  const [mes, setMes] = useState(String(now.getMonth() + 1));
+  const [ano, setAno] = useState(String(now.getFullYear()));
+  const [loading, setLoading] = useState(false);
+  const anos = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <CalendarDays className="h-4 w-4 mr-1" /> Relatório Mensal
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Relatório mensal</DialogTitle>
+          <DialogDescription>Todas as atividades do mês escolhido.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label>Mês</Label>
+            <Select value={mes} onValueChange={setMes}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MESES.map((m, i) => (
+                  <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Ano</Label>
+            <Select value={ano} onValueChange={setAno}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {anos.map((a) => (
+                  <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            disabled={loading}
+            onClick={async () => {
+              setLoading(true);
+              try {
+                await exportarRelatorioMensalPDF({
+                  currency,
+                  agencyName,
+                  year: Number(ano),
+                  month: Number(mes),
+                });
+                setOpen(false);
+              } catch (e: any) {
+                toast.error(e?.message ?? "Erro a gerar PDF");
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            {loading ? "A gerar…" : "Gerar PDF"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
