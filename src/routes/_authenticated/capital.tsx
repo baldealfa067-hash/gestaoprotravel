@@ -117,23 +117,27 @@ function CapitalPage() {
             Onde está o dinheiro, agora.
           </p>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={async () => {
-            try {
-              await exportarRelatorioGeralPDF({
-                currency,
-                agencyName: settings?.agency_name ?? "Agência",
-              });
-            } catch (e: any) {
-              toast.error(e?.message ?? "Erro a gerar PDF");
-            }
-          }}
-        >
-          <FileDown className="h-4 w-4 mr-1" /> Relatório Geral
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <RelatorioMensalDialog currency={currency} agencyName={settings?.agency_name ?? "Agência"} />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              try {
+                await exportarRelatorioGeralPDF({
+                  currency,
+                  agencyName: settings?.agency_name ?? "Agência",
+                });
+              } catch (e: any) {
+                toast.error(e?.message ?? "Erro a gerar PDF");
+              }
+            }}
+          >
+            <FileDown className="h-4 w-4 mr-1" /> Relatório Geral
+          </Button>
+        </div>
       </div>
+
 
 
       {/* 5 cards principais */}
