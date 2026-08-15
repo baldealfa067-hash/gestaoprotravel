@@ -317,7 +317,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
               <TableRow key={r.id} className={r.situacao !== "pago" ? "bg-warning/5" : undefined}>
                 <TableCell className="font-medium">{r.cliente?.full_name ?? "—"}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.valor_cobrado ?? 0), currency)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.total_divida ?? 0), currency)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatCurrency(r.pago_valor, currency)}</TableCell>
                 <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(r.restante, currency)}</TableCell>
                 <TableCell>
