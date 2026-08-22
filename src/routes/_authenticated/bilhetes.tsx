@@ -549,12 +549,30 @@ function BilhetesPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Bilhete cancelado");
+      toast.success("Bilhete cancelado — lucro, dívida e saldo revertidos");
+      setCancelTarget(null);
       qc.invalidateQueries({ queryKey: ["bilhetes"] });
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["capital-dividas-lista"] });
+      qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["companhias"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const eliminar = useMutation({
+    mutationFn: async (id: string) => deleteBilheteFn({ data: { bilhete_id: id } }),
+    onSuccess: () => {
+      toast.success("Bilhete eliminado");
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["bilhetes"] });
+      qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["reservas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   // live preview de taxa e valor cobrado
   const taxaPreview = useMemo(
