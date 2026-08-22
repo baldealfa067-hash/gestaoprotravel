@@ -581,7 +581,14 @@ function BilhetesPage() {
     const aEmitir = list.filter(
       (b: any) => b.status === "pedido_criado" || b.status === "pendente",
     ).length;
-    return { totalHoje: hoje.length, totalMes: mes.length, receitaMes, dividaPend, aEmitir };
+    const totalGeral = list.reduce(
+      (s: number, b: any) =>
+        s + Number(b.custo || 0) + Number(b.taxa_agencia || 0) + Number(b.taxa_mudancas_total || 0),
+      0,
+    );
+    const lucroTotal = list.reduce((s: number, b: any) => s + Number(b.taxa_agencia || 0), 0);
+    return { totalHoje: hoje.length, totalMes: mes.length, receitaMes, dividaPend, aEmitir, totalGeral, lucroTotal };
+
   }, [bilhetes, pagamentosPorBilhete]);
 
   const filtered = bilhetes.filter((b: any) => {
