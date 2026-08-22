@@ -57,10 +57,14 @@ import {
   Printer,
   Receipt,
   Route as RouteIcon,
+  Trash2,
 } from "lucide-react";
 import { PrintDocDialog, type PrintDocType, type PrintDocData } from "@/components/print/PrintDocDialog";
 import { MudancaRotaDialog, type MudancaTarget } from "@/components/mudanca-rota-dialog";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { deleteBilhete } from "@/lib/admin.functions";
+import { useUserRole } from "@/hooks/use-auth";
 
 
 import {
@@ -73,6 +77,7 @@ import {
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { CONTINENTES } from "@/lib/capital";
 import { startOfMonth, startOfDay } from "date-fns";
+
 
 export const Route = createFileRoute("/_authenticated/bilhetes")({
   component: BilhetesPage,
@@ -299,6 +304,11 @@ function BilhetesPage() {
   // estado do diálogo "criar reserva a partir do bilhete"
   const [reservaTarget, setReservaTarget] = useState<any | null>(null);
   const [mudancaTarget, setMudancaTarget] = useState<MudancaTarget | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const { isAdmin } = useUserRole();
+  const deleteBilheteFn = useServerFn(deleteBilhete);
+
 
   // impressão
   const [printState, setPrintState] = useState<{ type: PrintDocType; data: PrintDocData } | null>(null);
@@ -539,12 +549,30 @@ function BilhetesPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Bilhete cancelado");
+      toast.success("Bilhete cancelado — lucro, dívida e saldo revertidos");
+      setCancelTarget(null);
       qc.invalidateQueries({ queryKey: ["bilhetes"] });
       qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["capital-dividas-lista"] });
+      qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["companhias"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const eliminar = useMutation({
+    mutationFn: async (id: string) => deleteBilheteFn({ data: { bilhete_id: id } }),
+    onSuccess: () => {
+      toast.success("Bilhete eliminado");
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["bilhetes"] });
+      qc.invalidateQueries({ queryKey: ["capital-consistencia"] });
+      qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["reservas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   // live preview de taxa e valor cobrado
   const taxaPreview = useMemo(
@@ -581,7 +609,14 @@ function BilhetesPage() {
     const aEmitir = list.filter(
       (b: any) => b.status === "pedido_criado" || b.status === "pendente",
     ).length;
-    return { totalHoje: hoje.length, totalMes: mes.length, receitaMes, dividaPend, aEmitir };
+    const totalGeral = list.reduce(
+      (s: number, b: any) =>
+        s + Number(b.custo || 0) + Number(b.taxa_agencia || 0) + Number(b.taxa_mudancas_total || 0),
+      0,
+    );
+    const lucroTotal = list.reduce((s: number, b: any) => s + Number(b.taxa_agencia || 0), 0);
+    return { totalHoje: hoje.length, totalMes: mes.length, receitaMes, dividaPend, aEmitir, totalGeral, lucroTotal };
+
   }, [bilhetes, pagamentosPorBilhete]);
 
   const filtered = bilhetes.filter((b: any) => {
@@ -848,12 +883,16 @@ function BilhetesPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-3 md:grid-cols-5">
-        <KpiCard label="Hoje" value={String(kpis.totalHoje)} icon={<Plane className="h-4 w-4" />} />
-        <KpiCard label="Este mês" value={String(kpis.totalMes)} icon={<Plane className="h-4 w-4" />} />
+      <div className="grid gap-3 md:grid-cols-4">
         <KpiCard
-          label="Receita mês (taxas)"
-          value={formatCurrency(kpis.receitaMes, currency)}
+          label="Total geral (vendas)"
+          value={formatCurrency(kpis.totalGeral, currency)}
+          icon={<TrendingUp className="h-4 w-4" />}
+          accent="muted"
+        />
+        <KpiCard
+          label="Lucro (taxas)"
+          value={formatCurrency(kpis.lucroTotal, currency)}
           icon={<TrendingUp className="h-4 w-4" />}
           accent="success"
         />
@@ -870,6 +909,17 @@ function BilhetesPage() {
           accent={kpis.aEmitir > 0 ? "warning" : "muted"}
         />
       </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <KpiCard label="Hoje" value={String(kpis.totalHoje)} icon={<Plane className="h-4 w-4" />} />
+        <KpiCard label="Este mês" value={String(kpis.totalMes)} icon={<Plane className="h-4 w-4" />} />
+        <KpiCard
+          label="Lucro do mês"
+          value={formatCurrency(kpis.receitaMes, currency)}
+          icon={<TrendingUp className="h-4 w-4" />}
+          accent="success"
+        />
+      </div>
+
 
       <Card>
         <CardHeader className="flex flex-col md:flex-row gap-3 md:items-center">
@@ -1143,13 +1193,25 @@ function BilhetesPage() {
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => cancelar.mutate(b.id)}
+                                onClick={() => setCancelTarget(b)}
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Ban className="h-4 w-4 mr-2" /> Cancelar bilhete
                               </DropdownMenuItem>
                             </>
                           )}
+                          {cancelado && isAdmin && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget(b)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar bilhete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -1355,6 +1417,63 @@ function BilhetesPage() {
       />
 
       <MudancaRotaDialog target={mudancaTarget} onClose={() => setMudancaTarget(null)} />
+
+      {/* Confirmar cancelamento */}
+      <Dialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar bilhete</DialogTitle>
+            <DialogDescription>
+              {cancelTarget?.cliente?.full_name ?? "Cliente"} — {cancelTarget?.origem} → {cancelTarget?.destino}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p>Ao cancelar:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>O lucro da agência é retirado do Fundo de Lucro.</li>
+              <li>O custo volta ao saldo da companhia (se já tinha sido emitido).</li>
+              <li>A dívida do cliente deixa de contar.</li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelTarget(null)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelar.isPending}
+              onClick={() => cancelTarget && cancelar.mutate(cancelTarget.id)}
+            >
+              Cancelar bilhete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Eliminar bilhete cancelado */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar bilhete</DialogTitle>
+            <DialogDescription>
+              Esta ação apaga definitivamente o bilhete e os registos ligados (movimentos e mudanças de rota).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={eliminar.isPending}
+              onClick={() => deleteTarget && eliminar.mutate(deleteTarget.id)}
+            >
+              Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Pagamento de taxa de mudança */}
       <Dialog

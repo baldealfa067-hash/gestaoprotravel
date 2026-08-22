@@ -80,16 +80,62 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Reatribuir registos ao admin (FKs impedem a eliminação direta)
-    await supabaseAdmin.from("bilhetes").update({ vendedor_id: context.userId }).eq("vendedor_id", data.user_id);
-    await supabaseAdmin.from("reservas").update({ user_id: context.userId }).eq("user_id", data.user_id);
-    await supabaseAdmin.from("clientes").update({ created_by: context.userId }).eq("created_by", data.user_id);
-    await supabaseAdmin
-      .from("movimentacoes_capital")
-      .update({ responsavel_id: context.userId })
-      .eq("responsavel_id", data.user_id);
-    await supabaseAdmin.from("mudancas_rota").update({ responsavel_id: context.userId }).eq("responsavel_id", data.user_id);
+    const steps: Array<[string, PromiseLike<{ error: { message: string } | null }>]> = [
+      ["bilhetes", supabaseAdmin.from("bilhetes").update({ vendedor_id: context.userId }).eq("vendedor_id", data.user_id)],
+      ["reservas", supabaseAdmin.from("reservas").update({ user_id: context.userId }).eq("user_id", data.user_id)],
+      ["clientes", supabaseAdmin.from("clientes").update({ created_by: context.userId }).eq("created_by", data.user_id)],
+      [
+        "movimentacoes",
+        supabaseAdmin
+          .from("movimentacoes_capital")
+          .update({ responsavel_id: context.userId })
+          .eq("responsavel_id", data.user_id),
+      ],
+      [
+        "mudancas_rota",
+        supabaseAdmin.from("mudancas_rota").update({ responsavel_id: context.userId }).eq("responsavel_id", data.user_id),
+      ],
+    ];
+    for (const [nome, p] of steps) {
+      const { error } = await p;
+      if (error) throw new Error(`Falha ao reatribuir ${nome}: ${error.message}`);
+    }
+
+
+    // Limpar papéis e perfil antes de apagar o utilizador
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
+    await supabaseAdmin.from("profiles").delete().eq("id", data.user_id);
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
+    if (error) throw new Error(`Falha ao eliminar utilizador: ${error.message}`);
+    return { ok: true };
+  });
+
+export const deleteBilhete = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ bilhete_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Apenas administradores podem eliminar bilhetes");
+
+    // Garantir que o bilhete pertence à agência do admin e está cancelado
+    const { data: bilhete } = await context.supabase
+      .from("bilhetes")
+      .select("id, status")
+      .eq("id", data.bilhete_id)
+      .maybeSingle();
+    if (!bilhete) throw new Error("Bilhete não encontrado");
+    if (bilhete.status !== "cancelado") throw new Error("Cancele o bilhete antes de o eliminar");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("reservas").update({ bilhete_id: null }).eq("bilhete_id", data.bilhete_id);
+    await supabaseAdmin.from("mudancas_rota").delete().eq("bilhete_id", data.bilhete_id);
+    await supabaseAdmin.from("movimentacoes_capital").delete().eq("bilhete_id", data.bilhete_id);
+    const { error } = await supabaseAdmin.from("bilhetes").delete().eq("id", data.bilhete_id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
