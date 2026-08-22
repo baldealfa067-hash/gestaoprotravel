@@ -304,6 +304,11 @@ function BilhetesPage() {
   // estado do diálogo "criar reserva a partir do bilhete"
   const [reservaTarget, setReservaTarget] = useState<any | null>(null);
   const [mudancaTarget, setMudancaTarget] = useState<MudancaTarget | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const { isAdmin } = useUserRole();
+  const deleteBilheteFn = useServerFn(deleteBilhete);
+
 
   // impressão
   const [printState, setPrintState] = useState<{ type: PrintDocType; data: PrintDocData } | null>(null);
