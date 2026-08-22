@@ -848,12 +848,16 @@ function BilhetesPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-3 md:grid-cols-5">
-        <KpiCard label="Hoje" value={String(kpis.totalHoje)} icon={<Plane className="h-4 w-4" />} />
-        <KpiCard label="Este mês" value={String(kpis.totalMes)} icon={<Plane className="h-4 w-4" />} />
+      <div className="grid gap-3 md:grid-cols-4">
         <KpiCard
-          label="Receita mês (taxas)"
-          value={formatCurrency(kpis.receitaMes, currency)}
+          label="Total geral (vendas)"
+          value={formatCurrency(kpis.totalGeral, currency)}
+          icon={<TrendingUp className="h-4 w-4" />}
+          accent="primary"
+        />
+        <KpiCard
+          label="Lucro (taxas)"
+          value={formatCurrency(kpis.lucroTotal, currency)}
           icon={<TrendingUp className="h-4 w-4" />}
           accent="success"
         />
@@ -870,6 +874,17 @@ function BilhetesPage() {
           accent={kpis.aEmitir > 0 ? "warning" : "muted"}
         />
       </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <KpiCard label="Hoje" value={String(kpis.totalHoje)} icon={<Plane className="h-4 w-4" />} />
+        <KpiCard label="Este mês" value={String(kpis.totalMes)} icon={<Plane className="h-4 w-4" />} />
+        <KpiCard
+          label="Lucro do mês"
+          value={formatCurrency(kpis.receitaMes, currency)}
+          icon={<TrendingUp className="h-4 w-4" />}
+          accent="success"
+        />
+      </div>
+
 
       <Card>
         <CardHeader className="flex flex-col md:flex-row gap-3 md:items-center">
