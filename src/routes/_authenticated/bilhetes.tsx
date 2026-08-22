@@ -1418,6 +1418,63 @@ function BilhetesPage() {
 
       <MudancaRotaDialog target={mudancaTarget} onClose={() => setMudancaTarget(null)} />
 
+      {/* Confirmar cancelamento */}
+      <Dialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar bilhete</DialogTitle>
+            <DialogDescription>
+              {cancelTarget?.cliente?.full_name ?? "Cliente"} — {cancelTarget?.origem} → {cancelTarget?.destino}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p>Ao cancelar:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>O lucro da agência é retirado do Fundo de Lucro.</li>
+              <li>O custo volta ao saldo da companhia (se já tinha sido emitido).</li>
+              <li>A dívida do cliente deixa de contar.</li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelTarget(null)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelar.isPending}
+              onClick={() => cancelTarget && cancelar.mutate(cancelTarget.id)}
+            >
+              Cancelar bilhete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Eliminar bilhete cancelado */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar bilhete</DialogTitle>
+            <DialogDescription>
+              Esta ação apaga definitivamente o bilhete e os registos ligados (movimentos e mudanças de rota).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={eliminar.isPending}
+              onClick={() => deleteTarget && eliminar.mutate(deleteTarget.id)}
+            >
+              Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       {/* Pagamento de taxa de mudança */}
       <Dialog
         open={!!payTaxaTarget}
