@@ -860,7 +860,7 @@ function BilhetesPage() {
           label="Total geral (vendas)"
           value={formatCurrency(kpis.totalGeral, currency)}
           icon={<TrendingUp className="h-4 w-4" />}
-          accent="primary"
+          accent="muted"
         />
         <KpiCard
           label="Lucro (taxas)"
