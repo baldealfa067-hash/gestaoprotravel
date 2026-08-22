@@ -57,10 +57,14 @@ import {
   Printer,
   Receipt,
   Route as RouteIcon,
+  Trash2,
 } from "lucide-react";
 import { PrintDocDialog, type PrintDocType, type PrintDocData } from "@/components/print/PrintDocDialog";
 import { MudancaRotaDialog, type MudancaTarget } from "@/components/mudanca-rota-dialog";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { deleteBilhete } from "@/lib/admin.functions";
+import { useUserRole } from "@/hooks/use-auth";
 
 
 import {
@@ -73,6 +77,7 @@ import {
 import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { CONTINENTES } from "@/lib/capital";
 import { startOfMonth, startOfDay } from "date-fns";
+
 
 export const Route = createFileRoute("/_authenticated/bilhetes")({
   component: BilhetesPage,
