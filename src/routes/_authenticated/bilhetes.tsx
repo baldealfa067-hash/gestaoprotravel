@@ -1165,13 +1165,25 @@ function BilhetesPage() {
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => cancelar.mutate(b.id)}
+                                onClick={() => setCancelTarget(b)}
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Ban className="h-4 w-4 mr-2" /> Cancelar bilhete
                               </DropdownMenuItem>
                             </>
                           )}
+                          {cancelado && isAdmin && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget(b)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar bilhete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
