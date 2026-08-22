@@ -80,7 +80,7 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Reatribuir registos ao admin (FKs impedem a eliminação direta)
-    const steps: Array<[string, Promise<{ error: { message: string } | null }>]> = [
+    const steps: Array<[string, PromiseLike<{ error: { message: string } | null }>]> = [
       ["bilhetes", supabaseAdmin.from("bilhetes").update({ vendedor_id: context.userId }).eq("vendedor_id", data.user_id)],
       ["reservas", supabaseAdmin.from("reservas").update({ user_id: context.userId }).eq("user_id", data.user_id)],
       ["clientes", supabaseAdmin.from("clientes").update({ created_by: context.userId }).eq("created_by", data.user_id)],
@@ -100,6 +100,7 @@ export const deleteEmployee = createServerFn({ method: "POST" })
       const { error } = await p;
       if (error) throw new Error(`Falha ao reatribuir ${nome}: ${error.message}`);
     }
+
 
     // Limpar papéis e perfil antes de apagar o utilizador
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
