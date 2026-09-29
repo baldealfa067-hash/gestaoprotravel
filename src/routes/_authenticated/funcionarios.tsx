@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -29,7 +28,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { useAgencySettings } from "@/hooks/use-agency-settings";
-import { createEmployee, deleteEmployee } from "@/lib/admin.functions";
+import { criarFuncionario } from "@/lib/funcionarios";
 import { useUserRole } from "@/hooks/use-auth";
 import { RequireAdmin } from "@/components/require-admin";
 
@@ -55,8 +54,6 @@ function FuncionariosPage() {
   const { isAdmin } = useUserRole();
   const { data: settings } = useAgencySettings();
   const currency = settings?.currency ?? "AOA";
-  const createFn = useServerFn(createEmployee);
-  const deleteFn = useServerFn(deleteEmployee);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", full_name: "", phone: "", cargo: "", role: "vendedor" as "admin" | "vendedor" });
 
@@ -83,9 +80,13 @@ function FuncionariosPage() {
   });
 
   const create = useMutation({
-    mutationFn: async (values: z.infer<typeof schema>) => createFn({ data: values }),
-    onSuccess: () => {
-      toast.success("Funcionário criado");
+    mutationFn: async (values: z.infer<typeof schema>) => criarFuncionario(values),
+    onSuccess: ({ precisaConfirmarEmail }) => {
+      toast.success(
+        precisaConfirmarEmail
+          ? "Funcionário criado — tem de confirmar o email antes de entrar"
+          : "Funcionário criado",
+      );
       qc.invalidateQueries({ queryKey: ["funcionarios"] });
       setOpen(false);
       setForm({ email: "", password: "", full_name: "", phone: "", cargo: "", role: "vendedor" });
@@ -94,7 +95,10 @@ function FuncionariosPage() {
   });
 
   const remove = useMutation({
-    mutationFn: async (user_id: string) => deleteFn({ data: { user_id } }),
+    mutationFn: async (user_id: string) => {
+      const { error } = await (supabase as any).rpc("eliminar_funcionario", { _user_id: user_id });
+      if (error) throw new Error(error.message);
+    },
     onSuccess: () => {
       toast.success("Funcionário removido");
       qc.invalidateQueries({ queryKey: ["funcionarios"] });

@@ -62,8 +62,6 @@ import {
 import { PrintDocDialog, type PrintDocType, type PrintDocData } from "@/components/print/PrintDocDialog";
 import { MudancaRotaDialog, type MudancaTarget } from "@/components/mudanca-rota-dialog";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { deleteBilhete } from "@/lib/admin.functions";
 import { useUserRole } from "@/hooks/use-auth";
 
 
@@ -134,6 +132,12 @@ function calcTaxa(
   if (!origem || !destino) return 0;
   if (origem === destino) return Math.round(Number(custo || 0) * 0.06 * 100) / 100;
   return classe === "executiva" ? 50000 : 30000;
+}
+
+// valor_cobrado já inclui taxa_mudancas_total (trigger bilhete_auto_taxa / aplicar_mudanca_rota);
+// o pagamento do bilhete cobre só o resto — a taxa de mudança é paga no seu próprio fluxo
+function valorBilheteSemMudancas(b: any): number {
+  return Math.max(0, Number(b.valor_cobrado || 0) - Number(b.taxa_mudancas_total || 0));
 }
 
 function BilhetesPage() {
@@ -274,10 +278,9 @@ function BilhetesPage() {
   };
 
   const getPaymentInfo = (b: any) => {
-    const total = Number(b.valor_cobrado || 0);
-    const pagoCliente = Number((pagamentosPorBilhete as Record<string, number>)[b.id] ?? 0);
-    const pagoTaxa = Number((pagamentosTaxaMudPorBilhete as Record<string, number>)[b.id] ?? 0);
-    const pago = pagoCliente + pagoTaxa;
+    const total = valorBilheteSemMudancas(b);
+    // apenas pagamentos do bilhete — taxa de mudança tem fluxo próprio em getTaxaMudInfo
+    const pago = Number((pagamentosPorBilhete as Record<string, number>)[b.id] ?? 0);
     const restante = Math.max(0, total - pago);
     return {
       total,
@@ -307,7 +310,6 @@ function BilhetesPage() {
   const [cancelTarget, setCancelTarget] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const { isAdmin } = useUserRole();
-  const deleteBilheteFn = useServerFn(deleteBilhete);
 
 
   // impressão
@@ -448,7 +450,7 @@ function BilhetesPage() {
     mutationFn: async ({ b, contaId, valor }: { b: any; contaId: string; valor: number }) => {
       if (!contaId) throw new Error("Selecione a conta destino");
       if (!valor || valor <= 0) throw new Error("Informe um valor de pagamento válido");
-      const total = Number(b.valor_cobrado || 0);
+      const total = valorBilheteSemMudancas(b);
       // buscar quanto já foi pago para validar
       const { data: pagosMovs } = await (supabase as any)
         .from("movimentacoes_capital")
@@ -561,7 +563,10 @@ function BilhetesPage() {
   });
 
   const eliminar = useMutation({
-    mutationFn: async (id: string) => deleteBilheteFn({ data: { bilhete_id: id } }),
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).rpc("eliminar_bilhete", { _bilhete_id: id });
+      if (error) throw new Error(error.message);
+    },
     onSuccess: () => {
       toast.success("Bilhete eliminado");
       setDeleteTarget(null);
@@ -605,7 +610,7 @@ function BilhetesPage() {
     const receitaMes = mes.reduce((s: number, b: any) => s + Number(b.taxa_agencia || 0), 0);
     const dividaPend = list
       .filter((b: any) => ["emitido", "pendente", "pedido_criado", "pago"].includes(b.status))
-      .reduce((s: number, b: any) => s + getPaymentInfo(b).restante, 0);
+      .reduce((s: number, b: any) => s + getPaymentInfo(b).restante + getTaxaMudInfo(b).restante, 0);
     const aEmitir = list.filter(
       (b: any) => b.status === "pedido_criado" || b.status === "pendente",
     ).length;
@@ -617,7 +622,7 @@ function BilhetesPage() {
     const lucroTotal = list.reduce((s: number, b: any) => s + Number(b.taxa_agencia || 0), 0);
     return { totalHoje: hoje.length, totalMes: mes.length, receitaMes, dividaPend, aEmitir, totalGeral, lucroTotal };
 
-  }, [bilhetes, pagamentosPorBilhete]);
+  }, [bilhetes, pagamentosPorBilhete, pagamentosTaxaMudPorBilhete]);
 
   const filtered = bilhetes.filter((b: any) => {
     if (filterStatus !== "all" && b.status !== filterStatus) return false;
@@ -1094,7 +1099,7 @@ function BilhetesPage() {
                                 );
                                 const restante = Math.max(
                                   0,
-                                  Number(b.valor_cobrado || 0) - jaPago,
+                                  valorBilheteSemMudancas(b) - jaPago,
                                 );
                                 setPayTarget(b);
                                 setPayContaId(capitalCirculante?.id ?? "");
@@ -1303,7 +1308,7 @@ function BilhetesPage() {
             </DialogDescription>
           </DialogHeader>
           {payTarget && (() => {
-            const total = Number(payTarget.valor_cobrado || 0);
+            const total = valorBilheteSemMudancas(payTarget);
             const restante = Math.max(0, total - payJaPago);
             const cobreTudo = payValor + 0.01 >= restante && payValor > 0;
             return (

@@ -236,7 +236,7 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
     queryFn: async () => {
       const { data: bilhetes, error } = await (supabase as any)
         .from("bilhetes")
-        .select("id, custo, taxa_mudancas_total, valor_cobrado, pago, status, created_at, cliente:cliente_id(id, full_name)")
+        .select("id, custo, taxa_agencia, taxa_mudancas_total, valor_cobrado, pago, status, created_at, cliente:cliente_id(id, full_name)")
         .in("status", ["emitido", "pendente", "pedido_criado"])
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -254,7 +254,8 @@ function DividasSection({ currency, settings }: { currency: string; settings: an
       }
       return (bilhetes ?? []).map((b: any) => {
         const pago = pagosPorBilhete[b.id] ?? 0;
-        const total = Number(b.custo ?? 0) + Number(b.taxa_mudancas_total ?? 0);
+        // valor_cobrado = custo + taxa_agencia + taxa_mudancas_total (trigger bilhete_auto_taxa)
+        const total = Number(b.valor_cobrado ?? 0);
         const restante = Math.max(0, total - pago);
         let situacao: "pago" | "parcial" | "nao_pago" = "nao_pago";
         if (restante < 0.01) situacao = "pago";

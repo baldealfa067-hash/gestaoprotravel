@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, ShieldAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { listAgencies, deleteAgency } from "@/lib/superadmin.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/superadmin")({
   component: SuperadminPage,
@@ -35,18 +34,23 @@ export const Route = createFileRoute("/_authenticated/superadmin")({
 
 function SuperadminPage() {
   const qc = useQueryClient();
-  const fetchAgencies = useServerFn(listAgencies);
-  const removeAgency = useServerFn(deleteAgency);
   const [target, setTarget] = useState<{ id: string; nome: string } | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["superadmin-agencies"],
-    queryFn: () => fetchAgencies(),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("listar_agencias");
+      if (error) throw new Error(error.message);
+      return (data ?? []) as any[];
+    },
     retry: false,
   });
 
   const del = useMutation({
-    mutationFn: (id: string) => removeAgency({ data: { agency_id: id } }),
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).rpc("eliminar_agencia", { _agency_id: id });
+      if (error) throw new Error(error.message);
+    },
     onSuccess: () => {
       toast.success("Negócio eliminado");
       setTarget(null);

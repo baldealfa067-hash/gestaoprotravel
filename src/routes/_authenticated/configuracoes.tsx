@@ -21,8 +21,6 @@ import { useAgencySettings } from "@/hooks/use-agency-settings";
 import { useUserRole } from "@/hooks/use-auth";
 import { RequireAdmin } from "@/components/require-admin";
 import { Upload, X, AlertTriangle } from "lucide-react";
-import { useServerFn } from "@tanstack/react-start";
-import { resetAllData } from "@/lib/reset-data.functions";
 
 
 
@@ -259,9 +257,11 @@ function ResetDataCard() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState("");
-  const reset = useServerFn(resetAllData);
   const mut = useMutation({
-    mutationFn: async () => await reset({ data: { confirm: "RESET" } }),
+    mutationFn: async () => {
+      const { error } = await (supabase as any).rpc("repor_dados_agencia", { _confirmacao: "RESET" });
+      if (error) throw new Error(error.message);
+    },
     onSuccess: () => {
       toast.success("Todos os dados foram eliminados");
       setOpen(false);

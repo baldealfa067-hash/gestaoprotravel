@@ -75,6 +75,7 @@ export const Route = createFileRoute("/_authenticated/reservas")({
 const schema = z.object({
   cliente_id: z.string().uuid("Cliente obrigatório"),
   pnr: z.string().trim().min(2, "PNR obrigatório").max(20),
+  companhia: z.string().trim().min(2, "Companhia obrigatória").max(80),
   origem: z.string().trim().min(2).max(80),
   destino: z.string().trim().min(2).max(80),
   data_viagem: z.string().min(1, "Data obrigatória"),
@@ -96,6 +97,7 @@ function empty(): Form {
   return {
     cliente_id: "",
     pnr: "",
+    companhia: "",
     origem: "",
     destino: "",
     data_viagem: new Date().toISOString().slice(0, 10),
@@ -157,7 +159,7 @@ function ReservasPage() {
       const payload = {
         cliente_id: values.cliente_id,
         pnr: values.pnr.trim().toUpperCase(),
-        companhia: "",
+        companhia: values.companhia.trim(),
         origem: values.origem.trim(),
         destino: values.destino.trim(),
         data_viagem: values.data_viagem,
@@ -360,7 +362,7 @@ function ReservasPage() {
     setForm({
       cliente_id: r.cliente_id,
       pnr: r.pnr,
-      
+      companhia: r.companhia ?? "",
       origem: r.origem,
       destino: r.destino,
       data_viagem: r.data_viagem,
@@ -434,6 +436,14 @@ function ReservasPage() {
                     value={form.pnr}
                     onChange={(e) => setForm({ ...form, pnr: e.target.value })}
                     placeholder="Ex: ABC123"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Companhia *</Label>
+                  <Input
+                    value={form.companhia}
+                    onChange={(e) => setForm({ ...form, companhia: e.target.value })}
+                    placeholder="Ex: TAAG"
                   />
                 </div>
                 <div className="space-y-2">
