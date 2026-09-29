@@ -303,6 +303,41 @@ export type Database = {
           },
         ]
       }
+      convites_funcionario: {
+        Row: {
+          agency_id: string
+          created_at: string
+          created_by: string | null
+          email: string
+          expires_at: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          created_by?: string | null
+          email: string
+          expires_at?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          expires_at?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "convites_funcionario_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fundo_lucro: {
         Row: {
           agency_id: string
@@ -703,6 +738,10 @@ export type Database = {
         }
         Returns: number
       }
+      criar_convite_funcionario: {
+        Args: { _email: string; _role: Database["public"]["Enums"]["app_role"] }
+        Returns: undefined
+      }
       current_agency_id: { Args: never; Returns: string }
       current_user_role: {
         Args: never
@@ -715,6 +754,9 @@ export type Database = {
           novo_saldo: number
         }[]
       }
+      eliminar_agencia: { Args: { _agency_id: string }; Returns: undefined }
+      eliminar_bilhete: { Args: { _bilhete_id: string }; Returns: undefined }
+      eliminar_funcionario: { Args: { _user_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -723,6 +765,23 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      listar_agencias: {
+        Args: never
+        Returns: {
+          agency_name: string
+          bilhetes: number
+          created_at: string
+          currency: string
+          email: string
+          id: string
+          telefone: string
+          utilizadores: number
+        }[]
+      }
+      repor_dados_agencia: {
+        Args: { _confirmacao: string }
+        Returns: undefined
+      }
       sincronizar_capital_base: {
         Args: never
         Returns: {
