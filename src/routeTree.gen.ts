@@ -9,11 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SuperadminRouteImport } from './routes/superadmin'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedSuperadminRouteImport } from './routes/_authenticated/superadmin'
 import { Route as AuthenticatedReservasRouteImport } from './routes/_authenticated/reservas'
 import { Route as AuthenticatedFuncionariosRouteImport } from './routes/_authenticated/funcionarios'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -22,6 +22,11 @@ import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCapitalRouteImport } from './routes/_authenticated/capital'
 import { Route as AuthenticatedBilhetesRouteImport } from './routes/_authenticated/bilhetes'
 
+const SuperadminRoute = SuperadminRouteImport.update({
+  id: '/superadmin',
+  path: '/superadmin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -40,11 +45,6 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedSuperadminRoute = AuthenticatedSuperadminRouteImport.update({
-  id: '/superadmin',
-  path: '/superadmin',
-  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedReservasRoute = AuthenticatedReservasRouteImport.update({
   id: '/reservas',
@@ -88,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/superadmin': typeof SuperadminRoute
   '/bilhetes': typeof AuthenticatedBilhetesRoute
   '/capital': typeof AuthenticatedCapitalRoute
   '/clientes': typeof AuthenticatedClientesRoute
@@ -95,12 +96,12 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/reservas': typeof AuthenticatedReservasRoute
-  '/superadmin': typeof AuthenticatedSuperadminRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/superadmin': typeof SuperadminRoute
   '/bilhetes': typeof AuthenticatedBilhetesRoute
   '/capital': typeof AuthenticatedCapitalRoute
   '/clientes': typeof AuthenticatedClientesRoute
@@ -108,7 +109,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/reservas': typeof AuthenticatedReservasRoute
-  '/superadmin': typeof AuthenticatedSuperadminRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +116,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/superadmin': typeof SuperadminRoute
   '/_authenticated/bilhetes': typeof AuthenticatedBilhetesRoute
   '/_authenticated/capital': typeof AuthenticatedCapitalRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
@@ -123,7 +124,6 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/_authenticated/reservas': typeof AuthenticatedReservasRoute
-  '/_authenticated/superadmin': typeof AuthenticatedSuperadminRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +131,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/superadmin'
     | '/bilhetes'
     | '/capital'
     | '/clientes'
@@ -138,12 +139,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/funcionarios'
     | '/reservas'
-    | '/superadmin'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/superadmin'
     | '/bilhetes'
     | '/capital'
     | '/clientes'
@@ -151,13 +152,13 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/funcionarios'
     | '/reservas'
-    | '/superadmin'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/superadmin'
     | '/_authenticated/bilhetes'
     | '/_authenticated/capital'
     | '/_authenticated/clientes'
@@ -165,7 +166,6 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/funcionarios'
     | '/_authenticated/reservas'
-    | '/_authenticated/superadmin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -173,10 +173,18 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SuperadminRoute: typeof SuperadminRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/superadmin': {
+      id: '/superadmin'
+      path: '/superadmin'
+      fullPath: '/superadmin'
+      preLoaderRoute: typeof SuperadminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -204,13 +212,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/superadmin': {
-      id: '/_authenticated/superadmin'
-      path: '/superadmin'
-      fullPath: '/superadmin'
-      preLoaderRoute: typeof AuthenticatedSuperadminRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/reservas': {
       id: '/_authenticated/reservas'
@@ -272,7 +273,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFuncionariosRoute: typeof AuthenticatedFuncionariosRoute
   AuthenticatedReservasRoute: typeof AuthenticatedReservasRoute
-  AuthenticatedSuperadminRoute: typeof AuthenticatedSuperadminRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -283,7 +283,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFuncionariosRoute: AuthenticatedFuncionariosRoute,
   AuthenticatedReservasRoute: AuthenticatedReservasRoute,
-  AuthenticatedSuperadminRoute: AuthenticatedSuperadminRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -294,6 +293,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SuperadminRoute: SuperadminRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

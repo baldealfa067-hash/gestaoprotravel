@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, ShieldAlert, Trash2 } from "lucide-react";
+import { Loader2, LogOut, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -18,8 +18,20 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/_authenticated/superadmin")({
-  component: SuperadminPage,
+export const Route = createFileRoute("/superadmin")({
+  ssr: false,
+  beforeLoad: async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) throw redirect({ to: "/auth" });
+    const { data: sa } = await supabase
+      .from("superadmins")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    if (!sa) throw redirect({ to: "/dashboard" });
+    return { user: data.user };
+  },
+  component: SuperadminLayout,
   head: () => ({
     meta: [
       { title: "Superadministração | Gestão Pro Travel" },
@@ -28,9 +40,38 @@ export const Route = createFileRoute("/_authenticated/superadmin")({
       { property: "og:description", content: "Gestão global de agências da plataforma." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
     ],
   }),
 });
+
+function SuperadminLayout() {
+  const { user } = Route.useRouteContext();
+  const navigate = useNavigate();
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur px-4 md:px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <ShieldCheck className="h-4 w-4" />
+        </div>
+        <span className="font-semibold">Gestão Pro — Superadmin</span>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="hidden sm:inline text-sm text-muted-foreground">{user.email}</span>
+          <Button variant="ghost" size="sm" onClick={signOut}>
+            <LogOut className="h-4 w-4 mr-1" /> Sair
+          </Button>
+        </div>
+      </header>
+      <main className="mx-auto max-w-6xl">
+        <SuperadminPage />
+      </main>
+    </div>
+  );
+}
 
 function SuperadminPage() {
   const qc = useQueryClient();
