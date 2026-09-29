@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole, useIsSuperadmin } from "@/hooks/use-auth";
+import { useUserRole } from "@/hooks/use-auth";
 
 
 const adminItems = [
@@ -47,11 +47,7 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { isAdmin } = useUserRole();
-  const { isSuperadmin } = useIsSuperadmin();
-  const items = [
-    ...(isAdmin ? adminItems : vendedorItems),
-    ...(isSuperadmin ? [{ title: "Superadmin", url: "/superadmin", icon: ShieldCheck }] : []),
-  ];
+  const items = isAdmin ? adminItems : vendedorItems;
 
 
   const signOut = async () => {
